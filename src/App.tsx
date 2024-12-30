@@ -48,8 +48,8 @@ const Game: React.FC = () => {
   const gameWidth: number = 600;
   const gameHeight: number = 400;
   const targetSpeed: number = 2;
-  const targetSpawnInterval: number = 1500; // Revert to original default spawn interval
-  const powerUpSpawnInterval: number = 5000; // Revert to original default spawn interval
+  const targetSpawnInterval: number = 1500; // Base spawn interval
+  const powerUpSpawnInterval: number = 5000; // Base spawn interval
   const powerUpDuration: number = 5000;
   const [mousePosition, setMousePosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const targetRotationSpeed: number = 2;
@@ -546,87 +546,93 @@ const Game: React.FC = () => {
   };
 
   useEffect(() => {
-  if (gameStarted && !gameOver) {
-    const movementInterval = setInterval(() => {
-      setTargets((prevTargets) => {
-        const updatedTargets = prevTargets.map((target) => {
-          let { x, y, dx, dy } = target;
+    if (gameStarted && !gameOver) {
+      const movementInterval = setInterval(() => {
+        setTargets((prevTargets) => {
+          const updatedTargets = prevTargets.map((target) => {
+            let { x, y, dx, dy } = target;
 
-          x += dx;
-          y += dy;
+            x += dx;
+            y += dy;
 
-          if (x < 0 || x > gameWidth - target.size) {
-            dx = -dx;
-            x = x < 0 ? 0 : gameWidth - target.size;
-          }
-          if (y < 0 || y > gameHeight - target.size) {
-            dy = -dy;
-            y = y < 0 ? 0 : gameHeight - target.size;
-          }
-
-          return {
-            ...target,
-            x,
-            y,
-            dx,
-            dy,
-            rotation: (target.rotation + targetRotationSpeed) % 360,
-          };
-        });
-
-        // Remove expired targets
-        const lifetime = getTargetLifetime();
-        const expiredTargets = updatedTargets.filter(
-          (target) => Date.now() - target.spawnTime > lifetime
-        );
-
-        if (expiredTargets.length > 0) {
-          updatedTargets.forEach((target) => {
-            if (expiredTargets.find((et) => et.id === target.id)) {
-              target.isPopping = true;
+            if (x < 0 || x > gameWidth - target.size) {
+              dx = -dx;
+              x = x < 0 ? 0 : gameWidth - target.size;
             }
+            if (y < 0 || y > gameHeight - target.size) {
+              dy = -dy;
+              y = y < 0 ? 0 : gameHeight - target.size;
+            }
+
+            return {
+              ...target,
+              x,
+              y,
+              dx,
+              dy,
+              rotation: (target.rotation + targetRotationSpeed) % 360,
+            };
           });
 
-          setTimeout(() => {
-            setTargets((current) =>
-              current.filter((t) => !expiredTargets.find((et) => et.id === t.id))
-            );
+          // Remove expired targets
+          const lifetime = getTargetLifetime();
+          const expiredTargets = updatedTargets.filter(
+            (target) => Date.now() - target.spawnTime > lifetime
+          );
 
-            setLives((prevLives) => {
-              const newLives = prevLives - expiredTargets.length;
-              if (newLives <= 0) {
-                setGameOver(true);
-                setGameStarted(false);
-                stopMusic();
+          if (expiredTargets.length > 0) {
+            updatedTargets.forEach((target) => {
+              if (expiredTargets.find((et) => et.id === target.id)) {
+                target.isPopping = true;
               }
-              return Math.max(newLives, 0);
             });
-          }, 300);
+
+            setTimeout(() => {
+              setTargets((current) =>
+                current.filter((t) => !expiredTargets.find((et) => et.id === t.id))
+              );
+
+              setLives((prevLives) => {
+                const newLives = prevLives - expiredTargets.length;
+                if (newLives <= 0) {
+                  setGameOver(true);
+                  setGameStarted(false);
+                  stopMusic();
+                }
+                return Math.max(newLives, 0);
+              });
+            }, 300);
+          }
+
+          return updatedTargets;
+        });
+      }, 20);
+
+      const spawnIntervalId = setInterval(() => {
+        if (!gameOver) {
+          spawnTarget();
+
+          // Spawn boss targets
+          const bossSpawnChance = Math.min(0.01 + Math.floor((score - 1000) / 500) * 0.02, 0.5); // Max 50%
+          if (score >= 1000 && Math.random() < bossSpawnChance) {
+            spawnBossTarget();
+          }
         }
+      }, targetSpawnInterval); // Use base spawn interval
 
-        return updatedTargets;
-      });
-    }, 20);
-
-    const spawnIntervalId = setInterval(() => {
-      if (!gameOver) {
-        console.log(`Current spawn interval: ${Math.min(targetSpawnInterval, targetSpawnInterval / (1 + score * 0.0005))}`);
-        spawnTarget();
-
-        // Spawn boss targets
-        const bossSpawnChance = Math.min(0.01 + Math.floor((score - 1000) / 500) * 0.02, 0.5); // Max 50%
-        if (score >= 1000 && Math.random() < bossSpawnChance) {
-          spawnBossTarget();
+      const powerUpIntervalId = setInterval(() => {
+        if (!gameOver) {
+          spawnPowerUp();
         }
-      }
-    }, Math.min(targetSpawnInterval, targetSpawnInterval / (1 + score * 0.0005))); // Cap spawn interval at base value
+      }, powerUpSpawnInterval); // Use base spawn interval
 
-    return () => {
-      clearInterval(movementInterval);
-      clearInterval(spawnIntervalId);
-    };
-  }
-}, [gameStarted, gameOver, score]);
+      return () => {
+        clearInterval(movementInterval);
+        clearInterval(spawnIntervalId);
+        clearInterval(powerUpIntervalId);
+      };
+    }
+  }, [gameStarted, gameOver, score]);
 
   return (
     <div className="flex-container" style={{ padding: '20px', maxHeight: '100vh', overflow: 'hidden' }}>
