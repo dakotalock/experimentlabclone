@@ -52,6 +52,22 @@ h2 {
   transition: transform 0.1s ease-out;
 }
 
+/* Popping Animation */
+@keyframes pop {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1.5);
+    opacity: 0;
+  }
+}
+
+.target.popping {
+  animation: pop 0.3s ease-out forwards;
+}
+
 /* Power-ups */
 .power-up {
   position: absolute;
