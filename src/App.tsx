@@ -678,7 +678,7 @@ const Game: React.FC = () => {
               position: 'absolute',
               left: `${powerUp.x}px`,
               top: `${powerUp.y}px`,
-              backgroundColor: powerUp.type === 'time-freeze' ? 'black' : 'transparent', // Only freeze power-up is black
+              backgroundColor: powerUp.type === 'time-freeze' ? 'black' : undefined, // Only freeze power-up is black
             }}
             onClick={(e) => {
               e.stopPropagation();
