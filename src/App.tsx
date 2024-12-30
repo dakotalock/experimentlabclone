@@ -172,221 +172,95 @@ const Game: React.FC = () => {
     }, powerUpDuration);
   };
 
-  const handleMouseMove = (e: MouseEvent<HTMLDivElement>) => {
-    if (!gameAreaRef.current) return;
-    const rect = gameAreaRef.current.getBoundingClientRect();
-    setMousePosition({
-      x: e.clientX - rect.left,
-      y: e.clientY - rect.top,
-    });
-  };
-
-  const handleMouseClick = (e: MouseEvent<HTMLDivElement>) => {
-    if (gameOver || !gameStarted) return; // Prevent clicks before the game starts
-
-    if (!gameAreaRef.current) return;
-    const rect = gameAreaRef.current.getBoundingClientRect();
-
-    const clickX = e.clientX - rect.left;
-    const clickY = e.clientY - rect.top;
-
-    // Check if the click hit a target
-    const hitTarget = targets.some((target) => {
-      const targetCenterX = target.x + target.size / 2;
-      const targetCenterY = target.y + target.size / 2;
-      const distance = Math.sqrt(
-        Math.pow(clickX - targetCenterX, 2) + Math.pow(clickY - targetCenterY, 2)
-      );
-      return distance <= target.size / 2;
-    });
-
-    // Check if the click hit a power-up
-    const hitPowerUp = powerUps.some((powerUp) => {
-      const powerUpCenterX = powerUp.x + targetSize / 2;
-      const powerUpCenterY = powerUp.y + targetSize / 2;
-      const distance = Math.sqrt(
-        Math.pow(clickX - powerUpCenterX, 2) + Math.pow(clickY - powerUpCenterY, 2)
-      );
-      return distance <= targetSize / 2;
-    });
-
-    // Only decrease lives if the click missed both targets and power-ups
-    if (!hitTarget && !hitPowerUp) {
-      setLives((prevLives) => {
-        const newLives = prevLives - 1;
-        if (newLives <= 0) {
-          setGameOver(true);
-          setGameStarted(false);
-          stopMusic();
-        }
-        return newLives;
-      });
-    }
-
-    // Trigger the laser animation
-    setLaser({
-      startX: mousePosition.x,
-      startY: mousePosition.y,
-      endX: clickX,
-      endY: clickY,
-      timestamp: Date.now(),
-    });
-  };
-
-  const handleTargetClick = (id: number, e: MouseEvent<HTMLDivElement>) => {
-    if (gameOver) return;
-
-    // Trigger the laser animation
-    if (!gameAreaRef.current) return;
-    const rect = gameAreaRef.current.getBoundingClientRect();
-    const clickX = e.clientX - rect.left;
-    const clickY = e.clientY - rect.top;
-    setLaser({
-      startX: mousePosition.x,
-      startY: mousePosition.y,
-      endX: clickX,
-      endY: clickY,
-      timestamp: Date.now(),
-    });
-
-    // First set the popping animation
-    setTargets((prevTargets) =>
-      prevTargets.map((target) =>
-        target.id === id ? { ...target, isPopping: true } : target
-      )
-    );
-
-    // Remove target after animation
-    setTimeout(() => {
-      setTargets((prevTargets) => {
-        const updatedTargets = prevTargets.filter((target) => target.id !== id);
-        const clickedTarget = prevTargets.find((target) => target.id === id);
-        if (clickedTarget) {
-          switch (clickedTarget.type) {
-            case 'slime':
-              const newMiniTarget1: Target = {
-                x: clickedTarget.x,
-                y: clickedTarget.y,
-                dx: (Math.random() - 0.5) * targetSpeed,
-                dy: (Math.random() - 0.5) * targetSpeed,
-                id: Date.now() + Math.random(),
-                color: getRandomColor(),
-                rotation: 0,
-                spawnTime: Date.now(),
-                type: 'mini',
-                size: targetSize / 2,
-              };
-              const newMiniTarget2: Target = {
-                x: clickedTarget.x,
-                y: clickedTarget.y,
-                dx: (Math.random() - 0.5) * targetSpeed,
-                dy: (Math.random() - 0.5) * targetSpeed,
-                id: Date.now() + Math.random(),
-                color: getRandomColor(),
-                rotation: 0,
-                spawnTime: Date.now(),
-                type: 'mini',
-                size: targetSize / 2,
-              };
-              return [...updatedTargets, newMiniTarget1, newMiniTarget2];
-            default:
-              return updatedTargets;
-          }
-        }
-        return updatedTargets;
-      });
-      setScore((prevScore) => prevScore + (combo > 5 ? 2 : 1));
-      setCombo((prevCombo) => prevCombo + 1);
-    }, 300); // Match this with CSS animation duration
-  };
-
   const handlePowerUpClick = (id: number, e: MouseEvent<HTMLDivElement>) => {
-    if (gameOver) return;
+  if (gameOver) return;
 
-    // Trigger the laser animation
-    if (!gameAreaRef.current) return;
-    const rect = gameAreaRef.current.getBoundingClientRect();
-    const clickX = e.clientX - rect.left;
-    const clickY = e.clientY - rect.top;
-    setLaser({
-      startX: mousePosition.x,
-      startY: mousePosition.y,
-      endX: clickX,
-      endY: clickY,
-      timestamp: Date.now(),
-    });
+  // Trigger the laser animation
+  if (!gameAreaRef.current) return;
+  const rect = gameAreaRef.current.getBoundingClientRect();
+  const clickX = e.clientX - rect.left;
+  const clickY = e.clientY - rect.top;
+  setLaser({
+    startX: mousePosition.x,
+    startY: mousePosition.y,
+    endX: clickX,
+    endY: clickY,
+    timestamp: Date.now(),
+  });
 
-    // Handle power-up click logic
-    const clickedPowerUp = powerUps.find((pu) => pu.id === id);
-    if (!clickedPowerUp) return;
-    setPowerUps((prevPowerUps) => prevPowerUps.filter((powerUp) => powerUp.id !== id));
+  // Handle power-up click logic
+  const clickedPowerUp = powerUps.find((pu) => pu.id === id);
+  if (!clickedPowerUp) return;
+  setPowerUps((prevPowerUps) => prevPowerUps.filter((powerUp) => powerUp.id !== id));
 
-    switch (clickedPowerUp.type) {
-      case 'extra-life':
-        setLives((prevLives) => prevLives + 1);
-        break;
-      case 'time-freeze':
-        setCombo(0);
+  switch (clickedPowerUp.type) {
+    case 'extra-life':
+      setLives((prevLives) => prevLives + 1);
+      break;
+    case 'time-freeze':
+      setCombo(0);
+      setTargets((prevTargets) =>
+        prevTargets.map((target) => ({
+          ...target,
+          dx: 0,
+          dy: 0,
+        }))
+      );
+      setTimeout(() => {
         setTargets((prevTargets) =>
           prevTargets.map((target) => ({
             ...target,
-            dx: 0,
-            dy: 0,
+            dx: (Math.random() - 0.5) * targetSpeed,
+            dy: (Math.random() - 0.5) * targetSpeed,
           }))
         );
-        setTimeout(() => {
-          setTargets((prevTargets) =>
-            prevTargets.map((target) => ({
-              ...target,
-              dx: (Math.random() - 0.5) * targetSpeed,
-              dy: (Math.random() - 0.5) * targetSpeed,
-            }))
-          );
-        }, 5000); // Increased from 3000ms to 5000ms
-        break;
-      case 'double-points':
-        setScore((prevScore) => prevScore + 10);
-        break;
-      case 'skull':
-        setLives((prevLives) => Math.max(prevLives - 1, 0));
-        if (lives <= 1) {
-          setGameOver(true);
-          setGameStarted(false);
-          stopMusic();
-        }
-        break;
-      case 'lightning':
-        // Set isPopping to true for all targets
-        setTargets((prevTargets) =>
-          prevTargets.map((target) => ({ ...target, isPopping: true }))
-        );
+      }, 5000); // Increased from 3000ms to 5000ms
+      break;
+    case 'double-points':
+      setScore((prevScore) => prevScore + 10);
+      break;
+    case 'skull':
+      setLives((prevLives) => Math.max(prevLives - 1, 0));
+      if (lives <= 1) {
+        setGameOver(true);
+        setGameStarted(false);
+        stopMusic();
+      }
+      break;
+    case 'lightning':
+      // Set isPopping to true for all targets
+      setTargets((currentTargets) =>
+        currentTargets.map((target) => ({ ...target, isPopping: true }))
+      );
 
-        // Remove targets after the animation completes
-        setTimeout(() => {
-          setTargets([]);
-          setScore((prevScore) => prevScore + prevTargets.length);
-        }, 300); // Match this with CSS animation duration
-        break;
-      case 'lava-shield':
-        const halfLength = Math.ceil(targets.length / 2);
-        // Set isPopping to true for the first half of targets
-        setTargets((prevTargets) =>
-          prevTargets.map((target, index) =>
-            index < halfLength ? { ...target, isPopping: true } : target
-          )
-        );
+      // Remove targets after the animation completes
+      setTimeout(() => {
+        setTargets((currentTargets) => {
+          setScore((prevScore) => prevScore + currentTargets.length);
+          return [];
+        });
+      }, 300); // Match this with CSS animation duration
+      break;
+    case 'lava-shield':
+      const halfLength = Math.ceil(targets.length / 2);
+      // Set isPopping to true for the first half of targets
+      setTargets((prevTargets) =>
+        prevTargets.map((target, index) =>
+          index < halfLength ? { ...target, isPopping: true } : target
+        )
+      );
 
-        // Remove the first half of targets after the animation completes
-        setTimeout(() => {
-          setTargets((prevTargets) => prevTargets.slice(halfLength));
-          setScore((prevScore) => prevScore + halfLength);
-          setLives((prevLives) => prevLives + 2);
-        }, 300); // Match this with CSS animation duration
-        break;
-      default:
-        break;
-    }
-  };
+      // Remove the first half of targets after the animation completes
+      setTimeout(() => {
+        setTargets((prevTargets) => prevTargets.slice(halfLength));
+        setScore((prevScore) => prevScore + halfLength);
+        setLives((prevLives) => prevLives + 2);
+      }, 300); // Match this with CSS animation duration
+      break;
+    default:
+      break;
+  }
+};
 
   const renderLaser = () => {
     if (!laser) return null;
