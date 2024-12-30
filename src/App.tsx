@@ -796,7 +796,7 @@ const Game: React.FC = () => {
                 Gabriel Mode
               </button>
               <button
-                className={`difficulty-button ${difficulty === 'easy' ? 'active' : ''}`
+                className={`difficulty-button ${difficulty === 'easy' ? 'active' : ''}`}
                 onClick={() => setDifficulty('easy')}
               >
                 Easy
