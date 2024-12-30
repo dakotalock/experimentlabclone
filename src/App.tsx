@@ -12,8 +12,9 @@ interface Target {
   color: string;
   rotation: number;
   spawnTime: number;
-  type: 'normal' | 'slime' | 'mini';
+  type: 'normal' | 'slime' | 'mini' | 'boss';
   size: number;
+  health?: number; // Health for boss targets
   isPopping?: boolean; // New property for animation state
 }
 
@@ -72,6 +73,13 @@ const Game: React.FC = () => {
 
   const [selectedSong, setSelectedSong] = useState(songs[0]);
 
+  // Calculate current target lifetime
+  const getTargetLifetime = () => {
+    const baseLifetime = 30000; // 30 seconds
+    const lifetimeReduction = Math.floor(score / 500) * 5000; // 5 seconds per 500 score
+    return Math.max(baseLifetime - lifetimeReduction, 15000); // Minimum 15 seconds
+  };
+
   useEffect(() => {
     const script = document.createElement('script');
     script.src = 'https://w.soundcloud.com/player/api.js';
@@ -112,7 +120,7 @@ const Game: React.FC = () => {
     const dx = (Math.random() - 0.5) * targetSpeed;
     const dy = (Math.random() - 0.5) * targetSpeed;
     const color = getRandomColor();
-    let type: 'normal' | 'slime' | 'mini' = 'normal';
+    let type: 'normal' | 'slime' | 'mini' | 'boss' = 'normal';
     const random = Math.random();
     if (random < 0.1) {
       type = 'slime';
@@ -147,6 +155,24 @@ const Game: React.FC = () => {
       size,
     };
     setTargets((prevTargets) => [...prevTargets, newTarget]);
+  };
+
+  const spawnBossTarget = () => {
+    const bossHealth = score >= 5000 ? 5 + Math.floor((score - 5000) / 1000) : 5; // Health scaling
+    const bossTarget: Target = {
+      x: Math.random() * (gameWidth - targetSize * 2),
+      y: Math.random() * (gameHeight - targetSize * 2),
+      dx: (Math.random() - 0.5) * targetSpeed * 1.5, // Slightly faster
+      dy: (Math.random() - 0.5) * targetSpeed * 1.5,
+      id: Date.now() + Math.random(),
+      color: '#FF0000', // Red color for boss
+      rotation: 0,
+      spawnTime: Date.now(),
+      type: 'boss',
+      size: targetSize * 2, // Larger size
+      health: bossHealth, // Health based on score
+    };
+    setTargets((prevTargets) => [...prevTargets, bossTarget]);
   };
 
   const spawnPowerUp = () => {
@@ -249,11 +275,23 @@ const Game: React.FC = () => {
       timestamp: Date.now(),
     });
 
-    // First set the popping animation
+    // Handle boss targets
     setTargets((prevTargets) =>
-      prevTargets.map((target) =>
-        target.id === id ? { ...target, isPopping: true } : target
-      )
+      prevTargets.map((target) => {
+        if (target.id === id) {
+          if (target.type === 'boss') {
+            const newHealth = target.health! - 1;
+            if (newHealth <= 0) {
+              return { ...target, isPopping: true }; // Pop the boss
+            } else {
+              return { ...target, health: newHealth }; // Reduce health
+            }
+          } else {
+            return { ...target, isPopping: true }; // Pop normal targets
+          }
+        }
+        return target;
+      })
     );
 
     // Remove target after animation
@@ -289,6 +327,9 @@ const Game: React.FC = () => {
                 size: targetSize / 2,
               };
               return [...updatedTargets, newMiniTarget1, newMiniTarget2];
+            case 'boss':
+              setScore((prevScore) => prevScore + 10); // Bonus points for boss
+              return updatedTargets;
             default:
               return updatedTargets;
           }
@@ -297,7 +338,7 @@ const Game: React.FC = () => {
       });
       setScore((prevScore) => prevScore + (combo > 5 ? 2 : 1));
       setCombo((prevCombo) => prevCombo + 1);
-    }, 300); // Match this with CSS animation duration
+    }, 300);
   };
 
   const handlePowerUpClick = (id: number, e: MouseEvent<HTMLDivElement>) => {
@@ -533,11 +574,12 @@ const Game: React.FC = () => {
             };
           });
 
+          // Remove expired targets
+          const lifetime = getTargetLifetime();
           const expiredTargets = updatedTargets.filter(
-            (target) => Date.now() - target.spawnTime > 45000
+            (target) => Date.now() - target.spawnTime > lifetime
           );
 
-          // Add popping animation to expired targets
           if (expiredTargets.length > 0) {
             updatedTargets.forEach((target) => {
               if (expiredTargets.find((et) => et.id === target.id)) {
@@ -545,7 +587,6 @@ const Game: React.FC = () => {
               }
             });
 
-            // Remove expired targets after the animation completes
             setTimeout(() => {
               setTargets((current) =>
                 current.filter((t) => !expiredTargets.find((et) => et.id === t.id))
@@ -560,54 +601,31 @@ const Game: React.FC = () => {
                 }
                 return Math.max(newLives, 0);
               });
-            }, 300); // Match this with CSS animation duration
+            }, 300);
           }
 
           return updatedTargets;
         });
-
-        setPowerUps((prevPowerUps) => {
-          const updatedPowerUps = prevPowerUps.map((powerUp) => {
-            let { x, y, dx, dy } = powerUp;
-
-            x += dx;
-            y += dy;
-
-            if (x < 0 || x > gameWidth - targetSize) {
-              dx = -dx;
-              x = x < 0 ? 0 : gameWidth - targetSize;
-            }
-            if (y < 0 || y > gameHeight - targetSize) {
-              dy = -dy;
-              y = y < 0 ? 0 : gameHeight - targetSize;
-            }
-
-            return { ...powerUp, x, y };
-          });
-
-          const filteredPowerUps = updatedPowerUps.filter(
-            (powerUp) => Date.now() - powerUp.spawnTime <= powerUpDuration
-          );
-
-          return filteredPowerUps;
-        });
       }, 20);
 
       const spawnIntervalId = setInterval(() => {
-        if (!gameOver) spawnTarget();
-      }, targetSpawnInterval);
+        if (!gameOver) {
+          spawnTarget();
 
-      const powerUpIntervalId = setInterval(() => {
-        if (!gameOver) spawnPowerUp();
-      }, powerUpSpawnInterval);
+          // Spawn boss targets
+          const bossSpawnChance = Math.min(0.01 + Math.floor((score - 1000) / 500) * 0.02, 0.5); // Max 50%
+          if (score >= 1000 && Math.random() < bossSpawnChance) {
+            spawnBossTarget();
+          }
+        }
+      }, 1500 / (1 + score * 0.001)); // Scaling spawn interval
 
       return () => {
         clearInterval(movementInterval);
         clearInterval(spawnIntervalId);
-        clearInterval(powerUpIntervalId);
       };
     }
-  }, [gameStarted, gameOver]);
+  }, [gameStarted, gameOver, score]);
 
   return (
     <div className="flex-container" style={{ padding: '20px', maxHeight: '100vh', overflow: 'hidden' }}>
@@ -702,7 +720,22 @@ const Game: React.FC = () => {
               e.stopPropagation();
               handleTargetClick(target.id, e);
             }}
-          />
+          >
+            {target.type === 'boss' && (
+              <div
+                style={{
+                  position: 'absolute',
+                  top: '50%',
+                  left: '50%',
+                  transform: 'translate(-50%, -50%)',
+                  fontSize: '20px',
+                  color: '#FFFFFF',
+                }}
+              >
+                {target.health}
+              </div>
+            )}
+          </div>
         ))}
 
         {powerUps.map((powerUp) => (
@@ -743,6 +776,7 @@ const Game: React.FC = () => {
         <div className="text-xl text-white">Score: {score}</div>
         <div className="text-xl text-white">Lives: {lives}</div>
         <div className="text-xl text-white">Combo: x{combo}</div>
+        <div className="text-xl text-white">Time to Pop: {getTargetLifetime() / 1000} seconds</div>
       </div>
 
       <div className="mt-4">
@@ -762,7 +796,7 @@ const Game: React.FC = () => {
                 Gabriel Mode
               </button>
               <button
-                className={`difficulty-button ${difficulty === 'easy' ? 'active' : ''}`}
+                className={`difficulty-button ${difficulty === 'easy' ? 'active' : ''}`
                 onClick={() => setDifficulty('easy')}
               >
                 Easy
