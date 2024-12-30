@@ -37,7 +37,7 @@ const Game: React.FC = () => {
   const [powerUps, setPowerUps] = useState<PowerUp[]>([]);
   const [combo, setCombo] = useState<number>(0);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
-  const [difficulty, setDifficulty] = useState<'easy' | 'normal' | 'hard'>('normal');
+  const [difficulty, setDifficulty] = useState<'gabriel' | 'easy' | 'normal' | 'hard'>('normal');
   const [showInstructions, setShowInstructions] = useState<boolean>(false);
   const audioPlayerRef = useRef<any>(null);
   const soundCloudRef = useRef<HTMLIFrameElement>(null);
@@ -181,7 +181,7 @@ const Game: React.FC = () => {
   };
 
   const handleMouseClick = (e: MouseEvent<HTMLDivElement>) => {
-    if (gameOver) return;
+    if (gameOver || !gameStarted) return; // Prevent clicks before the game starts
 
     if (!gameAreaRef.current) return;
     const rect = gameAreaRef.current.getBoundingClientRect();
@@ -336,7 +336,7 @@ const Game: React.FC = () => {
               dy: (Math.random() - 0.5) * targetSpeed,
             }))
           );
-        }, 3000);
+        }, 5000); // Increased from 3000ms to 5000ms
         break;
       case 'double-points':
         setScore((prevScore) => prevScore + 10);
@@ -371,7 +371,6 @@ const Game: React.FC = () => {
 
     const age = Date.now() - laser.timestamp;
     if (age > 600) {
-      // Doubled duration from 300 to 600ms
       setLaser(null);
       return null;
     }
@@ -380,7 +379,7 @@ const Game: React.FC = () => {
     const dy = laser.endY - laser.startY;
     const angle = Math.atan2(dy, dx);
     const length = Math.sqrt(dx * dx + dy * dy);
-    const opacity = Math.max(0, 1 - age / 600); // Adjusted for new duration
+    const opacity = Math.max(0, 1 - age / 600);
 
     return (
       <>
@@ -393,9 +392,9 @@ const Game: React.FC = () => {
             transform: `rotate(${angle}rad)`,
             transformOrigin: '0% 50%',
             width: `${length}px`,
-            height: '6px', // Doubled from 3px to 6px
+            height: '6px',
             background: 'linear-gradient(90deg, rgba(255,0,0,1) 0%, rgba(255,107,107,0.8) 100%)',
-            boxShadow: '0 0 20px #ff0000, 0 0 40px #ff6b6b', // Doubled glow effect
+            boxShadow: '0 0 20px #ff0000, 0 0 40px #ff6b6b',
             opacity,
             transition: 'opacity 0.1s ease-out',
             zIndex: 1000,
@@ -405,26 +404,26 @@ const Game: React.FC = () => {
           className="impact"
           style={{
             position: 'absolute',
-            left: laser.endX - 30, // Doubled from 15 to 30
-            top: laser.endY - 30, // Doubled from 15 to 30
-            width: '60px', // Doubled from 30px to 60px
-            height: '60px', // Doubled from 30px to 60px
+            left: laser.endX - 30,
+            top: laser.endY - 30,
+            width: '60px',
+            height: '60px',
             background: 'radial-gradient(circle, rgba(255,107,107,0.8) 0%, transparent 70%)',
             opacity,
-            animation: 'impact 0.6s ease-out', // Doubled from 0.3s to 0.6s
+            animation: 'impact 0.6s ease-out',
           }}
         />
         <div
           className="muzzle-flash"
           style={{
             position: 'absolute',
-            left: laser.startX - 16, // Doubled from 8 to 16
-            top: laser.startY - 16, // Doubled from 8 to 16
-            width: '32px', // Doubled from 16px to 32px
-            height: '32px', // Doubled from 16px to 32px
+            left: laser.startX - 16,
+            top: laser.startY - 16,
+            width: '32px',
+            height: '32px',
             background: 'radial-gradient(circle, #ffffff 0%, #ff0000 50%, transparent 70%)',
             opacity,
-            animation: 'muzzleFlash 0.4s ease-out', // Doubled from 0.2s to 0.4s
+            animation: 'muzzleFlash 0.4s ease-out',
           }}
         />
       </>
@@ -451,7 +450,12 @@ const Game: React.FC = () => {
 
   const startGame = () => {
     setScore(0);
-    setLives(difficulty === 'easy' ? 10 : difficulty === 'normal' ? 3 : 1);
+    setLives(
+      difficulty === 'gabriel' ? 50 : // Gabriel Mode: 50 lives
+      difficulty === 'easy' ? 10 :    // Easy: 10 lives
+      difficulty === 'normal' ? 3 :   // Normal: 3 lives
+      1                              // Hard: 1 life
+    );
     setGameOver(false);
     setTargets([]);
     setPowerUps([]);
@@ -463,7 +467,12 @@ const Game: React.FC = () => {
   const resetGame = () => {
     setGameStarted(false);
     setScore(0);
-    setLives(difficulty === 'easy' ? 10 : difficulty === 'normal' ? 3 : 1);
+    setLives(
+      difficulty === 'gabriel' ? 50 : // Gabriel Mode: 50 lives
+      difficulty === 'easy' ? 10 :    // Easy: 10 lives
+      difficulty === 'normal' ? 3 :   // Normal: 3 lives
+      1                              // Hard: 1 life
+    );
     setGameOver(false);
     setTargets([]);
     setPowerUps([]);
@@ -588,7 +597,7 @@ const Game: React.FC = () => {
           <h3>Power-Ups</h3>
           <ul>
             <li><strong>+</strong>: Extra life</li>
-            <li><strong>❄️</strong>: Freeze targets for 3 seconds</li>
+            <li><strong>❄️</strong>: Freeze targets for 5 seconds</li>
             <li><strong>+10</strong>: Gain 10 points</li>
             <li><strong>⚡️</strong>: Destroy all targets and gain points</li>
             <li><strong>🛡️</strong>: Destroy half the targets, gain points, and gain 2 lives</li>
@@ -668,6 +677,7 @@ const Game: React.FC = () => {
               position: 'absolute',
               left: `${powerUp.x}px`,
               top: `${powerUp.y}px`,
+              backgroundColor: powerUp.type === 'time-freeze' ? 'black' : 'transparent', // Black background for freeze power-up
             }}
             onClick={(e) => {
               e.stopPropagation();
@@ -709,6 +719,12 @@ const Game: React.FC = () => {
               Start Game
             </button>
             <div className="flex space-x-4">
+              <button
+                className={`difficulty-button ${difficulty === 'gabriel' ? 'active' : ''}`}
+                onClick={() => setDifficulty('gabriel')}
+              >
+                Gabriel Mode
+              </button>
               <button
                 className={`difficulty-button ${difficulty === 'easy' ? 'active' : ''}`}
                 onClick={() => setDifficulty('easy')}
