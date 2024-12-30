@@ -356,16 +356,32 @@ const Game: React.FC = () => {
         }
         break;
       case 'lightning':
-        const pointsToAddLightning = targets.length;
-        setTargets([]);
-        setScore((prevScore) => prevScore + pointsToAddLightning);
+        // Set isPopping to true for all targets
+        setTargets((prevTargets) =>
+          prevTargets.map((target) => ({ ...target, isPopping: true }))
+        );
+
+        // Remove targets after the animation completes
+        setTimeout(() => {
+          setTargets([]);
+          setScore((prevScore) => prevScore + prevTargets.length);
+        }, 300); // Match this with CSS animation duration
         break;
       case 'lava-shield':
         const halfLength = Math.ceil(targets.length / 2);
-        const pointsToAddLavaShield = halfLength;
-        setTargets((prevTargets) => prevTargets.slice(halfLength));
-        setScore((prevScore) => prevScore + pointsToAddLavaShield);
-        setLives((prevLives) => prevLives + 2);
+        // Set isPopping to true for the first half of targets
+        setTargets((prevTargets) =>
+          prevTargets.map((target, index) =>
+            index < halfLength ? { ...target, isPopping: true } : target
+          )
+        );
+
+        // Remove the first half of targets after the animation completes
+        setTimeout(() => {
+          setTargets((prevTargets) => prevTargets.slice(halfLength));
+          setScore((prevScore) => prevScore + halfLength);
+          setLives((prevLives) => prevLives + 2);
+        }, 300); // Match this with CSS animation duration
         break;
       default:
         break;
@@ -527,6 +543,7 @@ const Game: React.FC = () => {
               }
             });
 
+            // Remove expired targets after the animation completes
             setTimeout(() => {
               setTargets((current) =>
                 current.filter((t) => !expiredTargets.find((et) => et.id === t.id))
