@@ -575,12 +575,12 @@ const Game: React.FC = () => {
   }, [gameStarted, gameOver]);
 
   return (
-    <div className="flex-container">
-      <h1 className="text-5xl font-extrabold mb-8 text-white">Gabriel's Game</h1>
-      <h2 className="text-xl text-gray-400 mt-4">Created by Dakota Lock for Gabriel</h2>
+    <div className="flex-container" style={{ padding: '20px', maxHeight: '100vh', overflow: 'hidden' }}>
+      <h1 className="text-5xl font-extrabold mb-4 text-white">Gabriel's Game</h1>
+      <h2 className="text-xl text-gray-400 mb-6">Created by Dakota Lock for Gabriel</h2>
 
       <button
-        className="instructions-button"
+        className="instructions-button mb-4"
         onClick={() => setShowInstructions(!showInstructions)}
       >
         Instructions
@@ -643,6 +643,7 @@ const Game: React.FC = () => {
           width: gameWidth,
           height: gameHeight,
           position: 'relative',
+          margin: '0 auto',
         }}
         onMouseMove={handleMouseMove}
         onClick={handleMouseClick}
@@ -677,7 +678,7 @@ const Game: React.FC = () => {
               position: 'absolute',
               left: `${powerUp.x}px`,
               top: `${powerUp.y}px`,
-              backgroundColor: powerUp.type === 'time-freeze' ? 'black' : 'transparent', // Black background for freeze power-up
+              backgroundColor: powerUp.type === 'time-freeze' ? 'black' : 'transparent', // Only freeze power-up is black
             }}
             onClick={(e) => {
               e.stopPropagation();
@@ -703,13 +704,13 @@ const Game: React.FC = () => {
         {renderLaser()}
       </div>
 
-      <div className="score-display">
+      <div className="score-display mt-4">
         <div className="text-xl text-white">Score: {score}</div>
         <div className="text-xl text-white">Lives: {lives}</div>
         <div className="text-xl text-white">Combo: x{combo}</div>
       </div>
 
-      <div className="mt-6">
+      <div className="mt-4">
         {!gameStarted && !gameOver && (
           <div className="flex flex-col items-center space-y-4">
             <button
@@ -767,18 +768,20 @@ const Game: React.FC = () => {
         )}
       </div>
 
-      <select
-        value={selectedSong.id.toString()}
-        onChange={(e) => {
-          const selectedId = parseInt(e.target.value);
-          setSelectedSong(songs.find(song => song.id === selectedId) || songs[0]);
-        }}
-        className="song-selector"
-      >
-        {songs.map(song => (
-          <option key={song.id} value={song.id.toString()}>{song.name}</option>
-        ))}
-      </select>
+      <div className="mt-4">
+        <select
+          value={selectedSong.id.toString()}
+          onChange={(e) => {
+            const selectedId = parseInt(e.target.value);
+            setSelectedSong(songs.find(song => song.id === selectedId) || songs[0]);
+          }}
+          className="song-selector"
+        >
+          {songs.map(song => (
+            <option key={song.id} value={song.id.toString()}>{song.name}</option>
+          ))}
+        </select>
+      </div>
     </div>
   );
 };
