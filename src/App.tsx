@@ -370,7 +370,8 @@ const Game: React.FC = () => {
     if (!laser) return null;
 
     const age = Date.now() - laser.timestamp;
-    if (age > 300) {
+    if (age > 600) {
+      // Doubled duration from 300 to 600ms
       setLaser(null);
       return null;
     }
@@ -379,7 +380,7 @@ const Game: React.FC = () => {
     const dy = laser.endY - laser.startY;
     const angle = Math.atan2(dy, dx);
     const length = Math.sqrt(dx * dx + dy * dy);
-    const opacity = Math.max(0, 1 - (age / 300));
+    const opacity = Math.max(0, 1 - age / 600); // Adjusted for new duration
 
     return (
       <>
@@ -392,9 +393,9 @@ const Game: React.FC = () => {
             transform: `rotate(${angle}rad)`,
             transformOrigin: '0% 50%',
             width: `${length}px`,
-            height: '3px',
+            height: '6px', // Doubled from 3px to 6px
             background: 'linear-gradient(90deg, rgba(255,0,0,1) 0%, rgba(255,107,107,0.8) 100%)',
-            boxShadow: '0 0 10px #ff0000, 0 0 20px #ff6b6b',
+            boxShadow: '0 0 20px #ff0000, 0 0 40px #ff6b6b', // Doubled glow effect
             opacity,
             transition: 'opacity 0.1s ease-out',
             zIndex: 1000,
@@ -404,26 +405,26 @@ const Game: React.FC = () => {
           className="impact"
           style={{
             position: 'absolute',
-            left: laser.endX - 15,
-            top: laser.endY - 15,
-            width: '30px',
-            height: '30px',
+            left: laser.endX - 30, // Doubled from 15 to 30
+            top: laser.endY - 30, // Doubled from 15 to 30
+            width: '60px', // Doubled from 30px to 60px
+            height: '60px', // Doubled from 30px to 60px
             background: 'radial-gradient(circle, rgba(255,107,107,0.8) 0%, transparent 70%)',
             opacity,
-            animation: 'impact 0.3s ease-out',
+            animation: 'impact 0.6s ease-out', // Doubled from 0.3s to 0.6s
           }}
         />
         <div
           className="muzzle-flash"
           style={{
             position: 'absolute',
-            left: laser.startX - 8,
-            top: laser.startY - 8,
-            width: '16px',
-            height: '16px',
+            left: laser.startX - 16, // Doubled from 8 to 16
+            top: laser.startY - 16, // Doubled from 8 to 16
+            width: '32px', // Doubled from 16px to 32px
+            height: '32px', // Doubled from 16px to 32px
             background: 'radial-gradient(circle, #ffffff 0%, #ff0000 50%, transparent 70%)',
             opacity,
-            animation: 'muzzleFlash 0.2s ease-out',
+            animation: 'muzzleFlash 0.4s ease-out', // Doubled from 0.2s to 0.4s
           }}
         />
       </>
