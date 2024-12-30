@@ -48,8 +48,8 @@ const Game: React.FC = () => {
   const gameWidth: number = 600;
   const gameHeight: number = 400;
   const targetSpeed: number = 2;
-  const targetSpawnInterval: number = 1500 / 2;
-  const powerUpSpawnInterval: number = 5000 / 2;
+  const targetSpawnInterval: number = 1500; // Revert to original default spawn interval
+  const powerUpSpawnInterval: number = 5000; // Revert to original default spawn interval
   const powerUpDuration: number = 5000;
   const [mousePosition, setMousePosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const targetRotationSpeed: number = 2;
@@ -618,7 +618,7 @@ const Game: React.FC = () => {
             spawnBossTarget();
           }
         }
-      }, 1500 / (1 + score * 0.001)); // Scaling spawn interval
+      }, targetSpawnInterval / (1 + score * 0.0005)); // Increase spawn rate very slowly
 
       return () => {
         clearInterval(movementInterval);
