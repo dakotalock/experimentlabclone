@@ -118,7 +118,7 @@ const Game: React.FC = () => {
       dx,
       dy,
       id: Date.now() + Math.random(),
-      color: shouldSpawnBoss ? '#FFD700' : getRandomColor(), // Yellow for boss
+      color: shouldSpawnBoss ? '#FFD700' : randomColor(), // Yellow for boss
       rotation: 0,
       isBoss: shouldSpawnBoss,
       health: shouldSpawnBoss ? 5 : undefined, // Boss has 5 health
