@@ -42,7 +42,7 @@ const Game: React.FC = () => {
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [difficulty, setDifficulty] = useState<'gabriel' | 'easy' | 'normal' | 'hard'>('normal');
   const [showInstructions, setShowInstructions] = useState<boolean>(false);
-  const [bossSpawnRate, setBossSpawnRate] = useState<number>(0.02); // Initial 2% spawn rate
+  const [bossSpawnRate, setBossSpawnRate] = useState<number>(0.03); // Initial 3% spawn rate
   const audioPlayerRef = useRef<any>(null);
   const soundCloudRef = useRef<HTMLIFrameElement>(null);
   const gameAreaRef = useRef<HTMLDivElement>(null);
@@ -52,7 +52,7 @@ const Game: React.FC = () => {
   const targetSpeed: number = 2;
   const targetSpawnInterval: number = 1500 / 2;
   const powerUpSpawnInterval: number = 5000 / 2;
-  const powerUpDuration: number = 5000;
+  const powerUpDuration: number = 3000; // Decreased to 3 seconds for lightning bolt
   const [mousePosition, setMousePosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const targetRotationSpeed: number = 2;
 
@@ -574,7 +574,7 @@ const Game: React.FC = () => {
           });
 
           const expiredTargets = updatedTargets.filter(
-            (target) => Date.now() - target.spawnTime > 45000
+            (target) => Date.now() - target.spawnTime > 20000 // Decreased to 20 seconds
           );
 
           if (expiredTargets.length > 0) {
@@ -840,7 +840,6 @@ const Game: React.FC = () => {
         <div className="text-xl text-white">Score: {score}</div>
         <div className="text-xl text-white">Lives: {lives}</div>
         <div className="text-xl text-white">Combo: x{combo}</div>
-        <div className="text-xl text-white">Boss Rate: {Math.round(bossSpawnRate * 100)}%</div>
       </div>
 
       <div className="mt-4">
