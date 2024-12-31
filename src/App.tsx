@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useRef, MouseEvent } from 'react';
+import AudioPlayer from 'react-h5-audio-player';
+import 'react-h5-audio-player/lib/styles.css';
 import './App.css';
 
 interface Target {
@@ -41,6 +43,7 @@ const Game: React.FC = () => {
   const [difficulty, setDifficulty] = useState<'gabriel' | 'easy' | 'normal' | 'hard'>('normal');
   const [showInstructions, setShowInstructions] = useState<boolean>(false);
   const [bossSpawnRate, setBossSpawnRate] = useState<number>(0.03); // Initial 3% spawn rate
+  const audioPlayerRef = useRef<any>(null);
   const soundCloudRef = useRef<HTMLIFrameElement>(null);
   const gameAreaRef = useRef<HTMLDivElement>(null);
   const targetSize: number = 30;
@@ -237,7 +240,15 @@ const Game: React.FC = () => {
     });
 
     if (!hitTarget && !hitPowerUp) {
-      setLives((prevLives) => Math.max(0, prevLives - 1)); // Ensure lives never go below 0
+      setLives((prevLives) => {
+        const newLives = prevLives - 1;
+        if (newLives <= 0) {
+          setGameOver(true);
+          setGameStarted(false);
+          stopMusic();
+        }
+        return newLives;
+      });
     }
 
     setLaser({
@@ -515,17 +526,21 @@ const Game: React.FC = () => {
 
   // Start music
   const startMusic = () => {
-    if (soundCloudRef.current) {
+    if (selectedSong.id === 1 && soundCloudRef.current) {
       const widget = (window as any).SC.Widget(soundCloudRef.current);
       widget.play();
+    } else if (audioPlayerRef.current) {
+      audioPlayerRef.current.audio.current.play();
     }
   };
 
   // Stop music
   const stopMusic = () => {
-    if (soundCloudRef.current) {
+    if (selectedSong.id === 1 && soundCloudRef.current) {
       const widget = (window as any).SC.Widget(soundCloudRef.current);
       widget.pause();
+    } else if (audioPlayerRef.current) {
+      audioPlayerRef.current.audio.current.pause();
     }
   };
 
@@ -594,7 +609,7 @@ const Game: React.FC = () => {
           });
 
           const expiredTargets = updatedTargets.filter(
-            (target) => Date.now() - target.spawnTime > 30000 // Increased to 30 seconds
+            (target) => Date.now() - target.spawnTime > 20000 // Decreased to 20 seconds
           );
 
           if (expiredTargets.length > 0) {
@@ -784,15 +799,27 @@ const Game: React.FC = () => {
       )}
 
       <div className="hidden">
-        <iframe
-          ref={soundCloudRef}
-          width="0"
-          height="0"
-          scrolling="no"
-          frameBorder="no"
-          allow="autoplay"
-          src={`https://w.soundcloud.com/player/?url=${encodeURIComponent(selectedSong.src)}&color=%23ff5500&auto_play=false&hide_related=false&show_comments=true&show_user=true&show_reposts=false&show_teaser=true`}
-        ></iframe>
+        {selectedSong.id === 1 ? (
+          <iframe
+            ref={soundCloudRef}
+            width="0"
+            height="0"
+            scrolling="no"
+            frameBorder="no"
+            allow="autoplay"
+            src={`https://w.soundcloud.com/player/?url=${encodeURIComponent(selectedSong.src)}&color=%23ff5500&auto_play=false&hide_related=false&show_comments=true&show_user=true&show_reposts=false&show_teaser=true`}
+          ></iframe>
+        ) : (
+          <AudioPlayer
+            ref={audioPlayerRef}
+            src={selectedSong.src}
+            autoPlay={false}
+            loop={true}
+            volume={0.5}
+            onPlay={() => setIsPlaying(true)}
+            onPause={() => setIsPlaying(false)}
+          />
+        )}
       </div>
 
       <div
