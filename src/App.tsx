@@ -53,7 +53,7 @@ const Game: React.FC = () => {
   const targetSpawnInterval: number = 1500 / 2;
   const powerUpSpawnInterval: number = 5000 / 2;
   const powerUpDuration: number = 3000; // Decreased to 3 seconds for lightning bolt
-  const [mousePosition, setMousePosition] useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [mousePosition, setMousePosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 }); // Fixed line
   const targetRotationSpeed: number = 2;
 
   const [laser, setLaser] = useState<{
