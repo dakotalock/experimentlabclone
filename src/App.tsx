@@ -74,6 +74,16 @@ const Game: React.FC = () => {
 
   const [selectedSong, setSelectedSong] = useState(songs[0]);
 
+  // Inline random color generator
+  const getRandomColor = (): string => {
+    const letters = '0123456789ABCDEF';
+    let color = '#';
+    for (let i = 0; i < 6; i++) {
+      color += letters[Math.floor(Math.random() * 16)];
+    }
+    return color;
+  };
+
   // Calculate responsive dimensions
   useEffect(() => {
     const updateDimensions = () => {
