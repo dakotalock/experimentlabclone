@@ -31,7 +31,7 @@ interface PowerUp {
 
 const Game: React.FC = () => {
   const [score, setScore] = useState<number>(0);
-  const [lives, setLives] = useState<number>(0);
+  const [lives, setLives] = useState<number>(3);
   const [gameOver, setGameOver] = useState<boolean>(false);
   const [gameStarted, setGameStarted] = useState<boolean>(false);
   const [targets, setTargets] = useState<Target[]>([]);
@@ -39,28 +39,10 @@ const Game: React.FC = () => {
   const [combo, setCombo] = useState<number>(0);
   const [difficulty, setDifficulty] = useState<'gabriel' | 'easy' | 'normal' | 'hard'>('normal');
   const [showInstructions, setShowInstructions] = useState<boolean>(false);
-  const [bossSpawnRate, setBossSpawnRate] = useState<number>(0.03); // Initial 3% spawn rate
+  const [bossSpawnRate, setBossSpawnRate] = useState<number>(0.03);
   const soundCloudRef = useRef<HTMLIFrameElement>(null);
   const gameAreaRef = useRef<HTMLDivElement>(null);
-  const targetSize: number = 30;
-  const [gameWidth, setGameWidth] = useState<number>(600);
-  const [gameHeight, setGameHeight] = useState<number>(400);
-  const targetSpeed: number = 2;
-  const targetSpawnInterval: number = 1500 / 2;
-  const powerUpSpawnInterval: number = 5000 / 2;
-  const powerUpDuration: number = 3000; // Decreased to 3 seconds for lightning bolt
-  const [mousePosition, setMousePosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
-  const targetRotationSpeed: number = 2;
 
-  const [laser, setLaser] = useState<{
-    startX: number;
-    startY: number;
-    endX: number;
-    endY: number;
-    timestamp: number;
-  } | null>(null);
-
-  // Updated songs array to only use SoundCloud sources
   const songs = [
     { id: 1, name: 'Lo-Fi Chill Beats', src: 'https://soundcloud.com/oxinym/sets/lofi-beats-royalty-free' },
     { id: 2, name: 'Relaxing Music', src: 'https://soundcloud.com/relaxingmusicok' },
@@ -70,73 +52,148 @@ const Game: React.FC = () => {
   ];
 
   const [selectedSong, setSelectedSong] = useState(songs[0]);
+  const [mousePosition, setMousePosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [laser, setLaser] = useState<{
+    startX: number;
+    startY: number;
+    endX: number;
+    endY: number;
+    timestamp: number;
+  } | null>(null);
 
-  // Fix game over crash by moving state updates into useEffect
+  const targetSize: number = 30;
+  const [gameWidth, setGameWidth] = useState<number>(600);
+  const [gameHeight, setGameHeight] = useState<number>(400);
+  const targetSpeed: number = 2;
+  const targetSpawnInterval: number = 1500 / 2;
+  const powerUpSpawnInterval: number = 5000 / 2;
+  const powerUpDuration: number = 3000;
+  const targetRotationSpeed: number = 2;
+
+  // Handle game over state
   useEffect(() => {
-    if (lives <= 0) {
+    if (lives <= 0 && gameStarted) {
       setGameOver(true);
       setGameStarted(false);
       stopMusic();
     }
-  }, [lives]);
+  }, [lives, gameStarted]);
 
-  // Inline random color generator
-  const getRandomColor = (): string => {
-    const letters = '0123456789ABCDEF';
-    let color = '#';
-    for (let i = 0; i < 6; i++) {
-      color += letters[Math.floor(Math.random() * 16)];
+  // Start music
+  const startMusic = () => {
+    if (soundCloudRef.current) {
+      const widget = (window as any).SC.Widget(soundCloudRef.current);
+      widget.play();
     }
-    return color;
   };
 
-  // Calculate responsive dimensions
-  useEffect(() => {
-    const updateDimensions = () => {
-      const maxWidth = 600;
-      const maxHeight = 400;
-      const aspectRatio = maxWidth / maxHeight;
-
-      const newWidth = Math.min(window.innerWidth * 0.9, maxWidth);
-      const newHeight = newWidth / aspectRatio;
-
-      setGameWidth(newWidth);
-      setGameHeight(newHeight);
-    };
-
-    updateDimensions();
-    window.addEventListener('resize', updateDimensions);
-    return () => window.removeEventListener('resize', updateDimensions);
-  }, []);
-
-  // Boss spawn logic
-  const spawnBoss = () => {
-    const x = Math.random() * (gameWidth - targetSize * 2);
-    const y = Math.random() * (gameHeight - targetSize * 2);
-    const dx = (Math.random() - 0.5) * (targetSpeed * 0.75); // Slower movement
-    const dy = (Math.random() - 0.5) * (targetSpeed * 0.75);
-    const newBoss: Target = {
-      x,
-      y,
-      dx,
-      dy,
-      id: Date.now() + Math.random(),
-      color: '#FFD700', // Gold color
-      rotation: 0,
-      spawnTime: Date.now(),
-      type: 'boss',
-      size: targetSize * 2, // Double size
-      health: 5,
-      isImmune: true, // Make boss immune to power-ups
-    };
-    setTargets((prevTargets) => [...prevTargets, newBoss]);
+  // Stop music
+  const stopMusic = () => {
+    if (soundCloudRef.current) {
+      const widget = (window as any).SC.Widget(soundCloudRef.current);
+      widget.pause();
+    }
   };
 
-  // Spawn targets (including bosses)
+  // Start game
+  const startGame = () => {
+    const initialLives =
+      difficulty === 'gabriel' ? 50 :
+      difficulty === 'easy' ? 10 :
+      difficulty === 'normal' ? 3 :
+      1;
+
+    setScore(0);
+    setLives(initialLives);
+    setGameOver(false);
+    setTargets([]);
+    setPowerUps([]);
+    setCombo(0);
+    setGameStarted(true);
+    startMusic();
+  };
+
+  // Reset game
+  const resetGame = () => {
+    stopMusic();
+    setGameStarted(false);
+    setGameOver(false);
+    setScore(0);
+    setLives(
+      difficulty === 'gabriel' ? 50 :
+      difficulty === 'easy' ? 10 :
+      difficulty === 'normal' ? 3 :
+      1
+    );
+    setTargets([]);
+    setPowerUps([]);
+    setCombo(0);
+  };
+
+  // Handle mouse click
+  const handleMouseClick = (e: MouseEvent<HTMLDivElement>) => {
+    if (gameOver || !gameStarted) return;
+
+    if (!gameAreaRef.current) return;
+    const rect = gameAreaRef.current.getBoundingClientRect();
+
+    const clickX = e.clientX - rect.left;
+    const clickY = e.clientY - rect.top;
+
+    const hitTarget = targets.some((target) => {
+      const targetCenterX = target.x + target.size / 2;
+      const targetCenterY = target.y + target.size / 2;
+      const distance = Math.sqrt(
+        Math.pow(clickX - targetCenterX, 2) + Math.pow(clickY - targetCenterY, 2)
+      );
+      return distance <= target.size / 2;
+    });
+
+    const hitPowerUp = powerUps.some((powerUp) => {
+      const powerUpCenterX = powerUp.x + targetSize / 2;
+      const powerUpCenterY = powerUp.y + targetSize / 2;
+      const distance = Math.sqrt(
+        Math.pow(clickX - powerUpCenterX, 2) + Math.pow(clickY - powerUpCenterY, 2)
+      );
+      return distance <= targetSize / 2;
+    });
+
+    if (!hitTarget && !hitPowerUp) {
+      setLives((prevLives) => Math.max(0, prevLives - 1));
+    }
+
+    setLaser({
+      startX: mousePosition.x,
+      startY: mousePosition.y,
+      endX: clickX,
+      endY: clickY,
+      timestamp: Date.now(),
+    });
+  };
+
+  // Spawn targets
   const spawnTarget = () => {
     const shouldSpawnBoss = Math.random() < bossSpawnRate;
     if (shouldSpawnBoss) {
-      spawnBoss();
+      const x = Math.random() * (gameWidth - targetSize * 2);
+      const y = Math.random() * (gameHeight - targetSize * 2);
+      const dx = (Math.random() - 0.5) * (targetSpeed * 0.75);
+      const dy = (Math.random() - 0.5) * (targetSpeed * 0.75);
+      const newBoss: Target = {
+        x,
+        y,
+        dx,
+        dy,
+        id: Date.now() + Math.random(),
+        color: '#FFD700',
+        rotation: 0,
+        spawnTime: Date.now(),
+        type: 'boss',
+        size: targetSize * 2,
+        health: 5,
+        isImmune: true,
+      };
+      setTargets((prevTargets) => [...prevTargets, newBoss]);
       return;
     }
 
@@ -144,7 +201,7 @@ const Game: React.FC = () => {
     const y = Math.random() * (gameHeight - targetSize);
     const dx = (Math.random() - 0.5) * targetSpeed;
     const dy = (Math.random() - 0.5) * targetSpeed;
-    const color = getRandomColor();
+    const color = `#${Math.floor(Math.random() * 16777215).toString(16)}`;
     let type: 'normal' | 'slime' | 'mini' = 'normal';
     const random = Math.random();
     if (random < 0.1) {
@@ -180,81 +237,6 @@ const Game: React.FC = () => {
       size,
     };
     setTargets((prevTargets) => [...prevTargets, newTarget]);
-  };
-
-  // Spawn power-ups
-  const spawnPowerUp = () => {
-    const x = Math.random() * (gameWidth - targetSize);
-    const y = Math.random() * (gameHeight - targetSize);
-    const dx = (Math.random() - 0.5) * targetSpeed;
-    const dy = (Math.random() - 0.5) * targetSpeed;
-    const powerUpTypes: PowerUpType[] = ['extra-life', 'time-freeze', 'double-points', 'skull', 'lightning', 'lava-shield'];
-    const type: PowerUpType = powerUpTypes[Math.floor(Math.random() * powerUpTypes.length)];
-    const newPowerUp: PowerUp = {
-      x,
-      y,
-      dx,
-      dy,
-      id: Date.now() + Math.random(),
-      type,
-      spawnTime: Date.now(),
-    };
-    setPowerUps((prevPowerUps) => [...prevPowerUps, newPowerUp]);
-
-    setTimeout(() => {
-      setPowerUps((prevPowerUps) => prevPowerUps.filter((powerUp) => powerUp.id !== newPowerUp.id));
-    }, powerUpDuration);
-  };
-
-  // Handle mouse movement
-  const handleMouseMove = (e: MouseEvent<HTMLDivElement>) => {
-    if (!gameAreaRef.current) return;
-    const rect = gameAreaRef.current.getBoundingClientRect();
-    setMousePosition({
-      x: e.clientX - rect.left,
-      y: e.clientY - rect.top,
-    });
-  };
-
-  // Handle mouse clicks
-  const handleMouseClick = (e: MouseEvent<HTMLDivElement>) => {
-    if (gameOver || !gameStarted) return;
-
-    if (!gameAreaRef.current) return;
-    const rect = gameAreaRef.current.getBoundingClientRect();
-
-    const clickX = e.clientX - rect.left;
-    const clickY = e.clientY - rect.top;
-
-    const hitTarget = targets.some((target) => {
-      const targetCenterX = target.x + target.size / 2;
-      const targetCenterY = target.y + target.size / 2;
-      const distance = Math.sqrt(
-        Math.pow(clickX - targetCenterX, 2) + Math.pow(clickY - targetCenterY, 2)
-      );
-      return distance <= target.size / 2;
-    });
-
-    const hitPowerUp = powerUps.some((powerUp) => {
-      const powerUpCenterX = powerUp.x + targetSize / 2;
-      const powerUpCenterY = powerUp.y + targetSize / 2;
-      const distance = Math.sqrt(
-        Math.pow(clickX - powerUpCenterX, 2) + Math.pow(clickY - powerUpCenterY, 2)
-      );
-      return distance <= targetSize / 2;
-    });
-
-    if (!hitTarget && !hitPowerUp) {
-      setLives((prevLives) => prevLives - 1);
-    }
-
-    setLaser({
-      startX: mousePosition.x,
-      startY: mousePosition.y,
-      endX: clickX,
-      endY: clickY,
-      timestamp: Date.now(),
-    });
   };
 
   // Handle target clicks
@@ -451,120 +433,6 @@ const Game: React.FC = () => {
     }
   };
 
-  // Render laser effect
-  const renderLaser = () => {
-    if (!laser) return null;
-
-    const age = Date.now() - laser.timestamp;
-    if (age > 600) {
-      setLaser(null);
-      return null;
-    }
-
-    const dx = laser.endX - laser.startX;
-    const dy = laser.endY - laser.startY;
-    const angle = Math.atan2(dy, dx);
-    const length = Math.sqrt(dx * dx + dy * dy);
-    const opacity = Math.max(0, 1 - age / 600);
-
-    return (
-      <>
-        <div
-          className="laser"
-          style={{
-            position: 'absolute',
-            left: laser.startX,
-            top: laser.startY,
-            transform: `rotate(${angle}rad)`,
-            transformOrigin: '0% 50%',
-            width: `${length}px`,
-            height: '6px',
-            background: 'linear-gradient(90deg, rgba(255,0,0,1) 0%, rgba(255,107,107,0.8) 100%)',
-            boxShadow: '0 0 20px #ff0000, 0 0 40px #ff6b6b',
-            opacity,
-            transition: 'opacity 0.1s ease-out',
-            zIndex: 1000,
-          }}
-        />
-        <div
-          className="impact"
-          style={{
-            position: 'absolute',
-            left: laser.endX - 30,
-            top: laser.endY - 30,
-            width: '60px',
-            height: '60px',
-            background: 'radial-gradient(circle, rgba(255,107,107,0.8) 0%, transparent 70%)',
-            opacity,
-            animation: 'impact 0.6s ease-out',
-          }}
-        />
-        <div
-          className="muzzle-flash"
-          style={{
-            position: 'absolute',
-            left: laser.startX - 16,
-            top: laser.startY - 16,
-            width: '32px',
-            height: '32px',
-            background: 'radial-gradient(circle, #ffffff 0%, #ff0000 50%, transparent 70%)',
-            opacity,
-            animation: 'muzzleFlash 0.4s ease-out',
-          }}
-        />
-      </>
-    );
-  };
-
-  // Simplify music controls to only use SoundCloud
-  const startMusic = () => {
-    if (soundCloudRef.current) {
-      const widget = (window as any).SC.Widget(soundCloudRef.current);
-      widget.play();
-    }
-  };
-
-  const stopMusic = () => {
-    if (soundCloudRef.current) {
-      const widget = (window as any).SC.Widget(soundCloudRef.current);
-      widget.pause();
-    }
-  };
-
-  // Start game
-  const startGame = () => {
-    setScore(0);
-    setLives(
-      difficulty === 'gabriel' ? 50 :
-      difficulty === 'easy' ? 10 :
-      difficulty === 'normal' ? 3 :
-      1
-    );
-    setGameOver(false);
-    setTargets([]);
-    setPowerUps([]);
-    setCombo(0);
-    setGameStarted(true);
-    startMusic();
-  };
-
-  // Reset game
-  const resetGame = () => {
-    setGameStarted(false);
-    setScore(0);
-    setLives(
-      difficulty === 'gabriel' ? 50 :
-      difficulty === 'easy' ? 10 :
-      difficulty === 'normal' ? 3 :
-      1
-    );
-    setGameOver(false);
-    setTargets([]);
-    setPowerUps([]);
-    setCombo(0);
-    stopMusic();
-  };
-
   // Game loop for target and power-up movement
   useEffect(() => {
     if (gameStarted && !gameOver) {
@@ -596,7 +464,7 @@ const Game: React.FC = () => {
           });
 
           const expiredTargets = updatedTargets.filter(
-            (target) => Date.now() - target.spawnTime > 30000 // Increased to 30 seconds
+            (target) => Date.now() - target.spawnTime > 30000
           );
 
           if (expiredTargets.length > 0) {
@@ -611,7 +479,7 @@ const Game: React.FC = () => {
                 current.filter((t) => !expiredTargets.find((et) => et.id === t.id))
               );
 
-              setLives((prevLives) => Math.max(prevLives - expiredTargets.length, 0));
+              setLives((prevLives) => Math.max(0, prevLives - expiredTargets.length));
             }, 300);
           }
 
@@ -619,29 +487,25 @@ const Game: React.FC = () => {
         });
 
         setPowerUps((prevPowerUps) => {
-          const updatedPowerUps = prevPowerUps.map((powerUp) => {
-            let { x, y, dx, dy } = powerUp;
+          return prevPowerUps
+            .map((powerUp) => {
+              let { x, y, dx, dy } = powerUp;
 
-            x += dx;
-            y += dy;
+              x += dx;
+              y += dy;
 
-            if (x < 0 || x > gameWidth - targetSize) {
-              dx = -dx;
-              x = x < 0 ? 0 : gameWidth - targetSize;
-            }
-            if (y < 0 || y > gameHeight - targetSize) {
-              dy = -dy;
-              y = y < 0 ? 0 : gameHeight - targetSize;
-            }
+              if (x < 0 || x > gameWidth - targetSize) {
+                dx = -dx;
+                x = x < 0 ? 0 : gameWidth - targetSize;
+              }
+              if (y < 0 || y > gameHeight - targetSize) {
+                dy = -dy;
+                y = y < 0 ? 0 : gameHeight - targetSize;
+              }
 
-            return { ...powerUp, x, y };
-          });
-
-          const filteredPowerUps = updatedPowerUps.filter(
-            (powerUp) => Date.now() - powerUp.spawnTime <= powerUpDuration
-          );
-
-          return filteredPowerUps;
+              return { ...powerUp, x, y, dx, dy };
+            })
+            .filter((powerUp) => Date.now() - powerUp.spawnTime <= powerUpDuration);
         });
       }, 20);
 
