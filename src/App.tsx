@@ -53,7 +53,7 @@ const Game: React.FC = () => {
   const targetSpawnInterval: number = 1500 / 2;
   const powerUpSpawnInterval: number = 5000 / 2;
   const powerUpDuration: number = 3000; // Decreased to 3 seconds for lightning bolt
-  const [mousePosition, setMousePosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [mousePosition, setMousePosition] useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const targetRotationSpeed: number = 2;
 
   const [laser, setLaser] = useState<{
@@ -298,6 +298,41 @@ const Game: React.FC = () => {
         return prevTargets.map((target) =>
           target.id === id ? { ...target, health: updatedHealth } : target
         );
+      }
+
+      // Handle slime targets
+      if (clickedTarget.type === 'slime') {
+        const miniTarget1: Target = {
+          x: clickedTarget.x,
+          y: clickedTarget.y,
+          dx: (Math.random() - 0.5) * targetSpeed,
+          dy: (Math.random() - 0.5) * targetSpeed,
+          id: Date.now() + Math.random(),
+          color: '#FF66CC',
+          rotation: 0,
+          spawnTime: Date.now(),
+          type: 'mini',
+          size: targetSize / 2,
+        };
+
+        const miniTarget2: Target = {
+          x: clickedTarget.x,
+          y: clickedTarget.y,
+          dx: (Math.random() - 0.5) * targetSpeed,
+          dy: (Math.random() - 0.5) * targetSpeed,
+          id: Date.now() + Math.random(),
+          color: '#FF66CC',
+          rotation: 0,
+          spawnTime: Date.now(),
+          type: 'mini',
+          size: targetSize / 2,
+        };
+
+        return [
+          ...prevTargets.filter((target) => target.id !== id),
+          miniTarget1,
+          miniTarget2,
+        ];
       }
 
       // Handle regular targets
