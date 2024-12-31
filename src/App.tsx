@@ -12,10 +12,11 @@ interface Target {
   color: string;
   rotation: number;
   spawnTime: number;
-  type: 'normal' | 'slime' | 'mini' | 'boss'; // Added 'boss' type
+  type: 'normal' | 'slime' | 'mini' | 'boss';
   size: number;
   isPopping?: boolean;
-  health?: number; // Added health for bosses
+  health?: number;
+  isImmune?: boolean;
 }
 
 type PowerUpType = 'extra-life' | 'time-freeze' | 'double-points' | 'skull' | 'lightning' | 'lava-shield';
@@ -41,7 +42,7 @@ const Game: React.FC = () => {
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [difficulty, setDifficulty] = useState<'gabriel' | 'easy' | 'normal' | 'hard'>('normal');
   const [showInstructions, setShowInstructions] = useState<boolean>(false);
-  const [bossSpawnRate, setBossSpawnRate] = useState<number>(0.02); // Boss spawn rate starts at 2%
+  const [bossSpawnRate, setBossSpawnRate] = useState<number>(0.02); // Initial 2% spawn rate
   const audioPlayerRef = useRef<any>(null);
   const soundCloudRef = useRef<HTMLIFrameElement>(null);
   const gameAreaRef = useRef<HTMLDivElement>(null);
@@ -107,20 +108,21 @@ const Game: React.FC = () => {
   const spawnBoss = () => {
     const x = Math.random() * (gameWidth - targetSize * 2);
     const y = Math.random() * (gameHeight - targetSize * 2);
-    const dx = (Math.random() - 0.5) * targetSpeed;
-    const dy = (Math.random() - 0.5) * targetSpeed;
+    const dx = (Math.random() - 0.5) * (targetSpeed * 0.75); // Slower movement
+    const dy = (Math.random() - 0.5) * (targetSpeed * 0.75);
     const newBoss: Target = {
       x,
       y,
       dx,
       dy,
       id: Date.now() + Math.random(),
-      color: '#FFD700', // Gold color for boss
+      color: '#FFD700', // Gold color
       rotation: 0,
       spawnTime: Date.now(),
       type: 'boss',
-      size: targetSize * 1.5, // Boss is 50% larger
-      health: 5, // Boss has 5 health points
+      size: targetSize * 2, // Double size
+      health: 5,
+      isImmune: true, // Make boss immune to power-ups
     };
     setTargets((prevTargets) => [...prevTargets, newBoss]);
   };
@@ -274,76 +276,57 @@ const Game: React.FC = () => {
       timestamp: Date.now(),
     });
 
-    setTargets((prevTargets) =>
-      prevTargets.map((target) =>
+    setTargets((prevTargets) => {
+      const clickedTarget = prevTargets.find((target) => target.id === id);
+
+      if (!clickedTarget) return prevTargets;
+
+      // Handle boss targets
+      if (clickedTarget.type === 'boss' && clickedTarget.health) {
+        const updatedHealth = clickedTarget.health - 1;
+
+        // If boss is defeated
+        if (updatedHealth <= 0) {
+          return prevTargets
+            .map((target) =>
+              target.id === id ? { ...target, isPopping: true, health: 0 } : target
+            )
+            .filter((target) => !(target.id === id && target.isPopping));
+        }
+
+        // If boss is hit but not defeated
+        return prevTargets.map((target) =>
+          target.id === id ? { ...target, health: updatedHealth } : target
+        );
+      }
+
+      // Handle regular targets
+      return prevTargets.map((target) =>
         target.id === id ? { ...target, isPopping: true } : target
-      )
-    );
+      );
+    });
 
     setTimeout(() => {
       setTargets((prevTargets) => {
-        const updatedTargets = prevTargets.filter((target) => target.id !== id);
         const clickedTarget = prevTargets.find((target) => target.id === id);
-        if (clickedTarget) {
-          switch (clickedTarget.type) {
-            case 'slime':
-              const newMiniTarget1: Target = {
-                x: clickedTarget.x,
-                y: clickedTarget.y,
-                dx: (Math.random() - 0.5) * targetSpeed,
-                dy: (Math.random() - 0.5) * targetSpeed,
-                id: Date.now() + Math.random(),
-                color: getRandomColor(),
-                rotation: 0,
-                spawnTime: Date.now(),
-                type: 'mini',
-                size: targetSize / 2,
-              };
-              const newMiniTarget2: Target = {
-                x: clickedTarget.x,
-                y: clickedTarget.y,
-                dx: (Math.random() - 0.5) * targetSpeed,
-                dy: (Math.random() - 0.5) * targetSpeed,
-                id: Date.now() + Math.random(),
-                color: getRandomColor(),
-                rotation: 0,
-                spawnTime: Date.now(),
-                type: 'mini',
-                size: targetSize / 2,
-              };
-              return [...updatedTargets, newMiniTarget1, newMiniTarget2];
-            case 'boss':
-              handleBossClick(id, e);
-              return updatedTargets;
-            default:
-              return updatedTargets;
-          }
-        }
-        return updatedTargets;
-      });
-      setScore((prevScore) => prevScore + (combo > 5 ? 2 : 1));
-      setCombo((prevCombo) => prevCombo + 1);
-    }, 300);
-  };
 
-  // Handle boss clicks
-  const handleBossClick = (id: number, e: MouseEvent<HTMLDivElement>) => {
-    setTargets((prevTargets) =>
-      prevTargets.map((target) =>
-        target.id === id && target.type === 'boss' && target.health
-          ? { ...target, health: target.health - 1 }
-          : target
-      )
-    );
+        if (!clickedTarget) return prevTargets;
 
-    setTimeout(() => {
-      setTargets((prevTargets) => {
-        const updatedTargets = prevTargets.filter((target) => !(target.id === id && target.health === 0));
-        const clickedTarget = prevTargets.find((target) => target.id === id);
-        if (clickedTarget && clickedTarget.type === 'boss' && clickedTarget.health === 0) {
-          setScore((prevScore) => prevScore + 10); // Bonus points for killing boss
+        // Add score for boss defeat
+        if (clickedTarget.type === 'boss' && clickedTarget.health === 0) {
+          setScore((prevScore) => prevScore + 10);
+          return prevTargets.filter((target) => target.id !== id);
         }
-        return updatedTargets;
+
+        // Handle regular target defeat
+        if (clickedTarget.isPopping) {
+          const updatedTargets = prevTargets.filter((target) => target.id !== id);
+          setScore((prevScore) => prevScore + (combo > 5 ? 2 : 1));
+          setCombo((prevCombo) => prevCombo + 1);
+          return updatedTargets;
+        }
+
+        return prevTargets;
       });
     }, 300);
   };
@@ -404,26 +387,36 @@ const Game: React.FC = () => {
         break;
       case 'lightning':
         setTargets((currentTargets) =>
-          currentTargets.map((target) => ({ ...target, isPopping: true }))
+          currentTargets.map((target) => ({
+            ...target,
+            isPopping: target.isImmune ? false : true,
+          }))
         );
         setTimeout(() => {
           setTargets((currentTargets) => {
-            setScore((prevScore) => prevScore + currentTargets.length);
-            return [];
+            const nonImmuneTargets = currentTargets.filter((t) => !t.isImmune);
+            setScore((prevScore) => prevScore + nonImmuneTargets.length);
+            return currentTargets.filter((t) => t.isImmune);
           });
         }, 300);
         break;
       case 'lava-shield':
-        const halfLength = Math.ceil(targets.length / 2);
+        const vulnerableTargets = targets.filter((t) => !t.isImmune);
+        const halfLength = Math.ceil(vulnerableTargets.length / 2);
         setTargets((prevTargets) =>
-          prevTargets.map((target, index) =>
-            index < halfLength ? { ...target, isPopping: true } : target
-          )
+          prevTargets.map((target) => {
+            if (target.isImmune) return target;
+            const targetIndex = vulnerableTargets.indexOf(target);
+            return targetIndex < halfLength ? { ...target, isPopping: true } : target;
+          })
         );
         setTimeout(() => {
-          setTargets((prevTargets) => prevTargets.filter((_, index) => index >= halfLength));
-          setScore((prevScore) => prevScore + halfLength);
-          setLives((prevLives) => prevLives + 2);
+          setTargets((prevTargets) => {
+            const remainingTargets = prevTargets.filter((t) => !t.isPopping);
+            setScore((prevScore) => prevScore + (prevTargets.length - remainingTargets.length));
+            setLives((prevLives) => prevLives + 2);
+            return remainingTargets;
+          });
         }, 300);
         break;
       default:
@@ -654,6 +647,84 @@ const Game: React.FC = () => {
     }
   }, [gameStarted, gameOver]);
 
+  // Progressive difficulty: Increase boss spawn rate over time
+  useEffect(() => {
+    if (gameStarted && !gameOver) {
+      const bossRateInterval = setInterval(() => {
+        setBossSpawnRate((prev) => Math.min(prev + 0.01, 0.2)); // Increase by 1% up to max 20%
+      }, 30000); // Every 30 seconds
+
+      return () => clearInterval(bossRateInterval);
+    }
+  }, [gameStarted, gameOver]);
+
+  // Render targets
+  const renderTarget = (target: Target) => {
+    if (target.type === 'boss') {
+      return (
+        <div
+          key={target.id}
+          className={`target ${target.isPopping ? 'popping' : ''}`}
+          style={{
+            position: 'absolute',
+            left: `${target.x}px`,
+            top: `${target.y}px`,
+            width: `${target.size}px`,
+            height: `${target.size}px`,
+            transform: `rotate(${target.rotation}deg)`,
+            cursor: 'pointer',
+          }}
+          onClick={(e) => {
+            e.stopPropagation();
+            handleTargetClick(target.id, e);
+          }}
+        >
+          <svg width="100%" height="100%" viewBox="0 0 100 100">
+            <path
+              d="M50 0 L61 35 L97 35 L68 57 L79 91 L50 70 L21 91 L32 57 L3 35 L39 35 Z"
+              fill="#FFD700"
+              stroke="#FFA500"
+              strokeWidth="2"
+            />
+            <text
+              x="50"
+              y="55"
+              textAnchor="middle"
+              fill="black"
+              fontSize="30"
+              fontWeight="bold"
+              style={{ userSelect: 'none' }}
+            >
+              {target.health}
+            </text>
+          </svg>
+        </div>
+      );
+    }
+
+    return (
+      <div
+        key={target.id}
+        className={`target ${target.isPopping ? 'popping' : ''}`}
+        style={{
+          position: 'absolute',
+          left: `${target.x}px`,
+          top: `${target.y}px`,
+          width: `${target.size}px`,
+          height: `${target.size}px`,
+          backgroundColor: target.type === 'slime' ? '#66CCFF' : target.type === 'mini' ? '#FF66CC' : target.color,
+          borderRadius: target.type === 'slime' || target.type === 'mini' ? '50%' : '10%',
+          transform: `rotate(${target.rotation}deg)`,
+          boxShadow: `0 0 10px ${target.color}`,
+        }}
+        onClick={(e) => {
+          e.stopPropagation();
+          handleTargetClick(target.id, e);
+        }}
+      />
+    );
+  };
+
   return (
     <div className="flex-container" style={{ padding: '20px', maxHeight: '100vh', overflow: 'hidden' }}>
       <h1 className="text-5xl font-extrabold mb-4 text-white">Gabriel's Game</h1>
@@ -729,33 +800,7 @@ const Game: React.FC = () => {
         onMouseMove={handleMouseMove}
         onClick={handleMouseClick}
       >
-        {targets.map((target) => (
-          <div
-            key={target.id}
-            className={`target ${target.isPopping ? 'popping' : ''}`}
-            style={{
-              position: 'absolute',
-              left: `${target.x}px`,
-              top: `${target.y}px`,
-              width: `${target.size}px`,
-              height: `${target.size}px`,
-              backgroundColor: target.type === 'slime' ? '#66CCFF' : target.type === 'mini' ? '#FF66CC' : target.color,
-              borderRadius: target.type === 'slime' || target.type === 'mini' ? '50%' : '10%',
-              transform: `rotate(${target.rotation}deg)`,
-              boxShadow: `0 0 10px ${target.color}`,
-            }}
-            onClick={(e) => {
-              e.stopPropagation();
-              handleTargetClick(target.id, e);
-            }}
-          >
-            {target.type === 'boss' && target.health && (
-              <div className="absolute inset-0 flex items-center justify-center text-white font-bold text-xl">
-                {target.health}
-              </div>
-            )}
-          </div>
-        ))}
+        {targets.map((target) => renderTarget(target))}
 
         {powerUps.map((powerUp) => (
           <div
