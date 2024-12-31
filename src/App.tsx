@@ -1,6 +1,4 @@
 import React, { useState, useEffect, useRef, MouseEvent } from 'react';
-import AudioPlayer from 'react-h5-audio-player';
-import 'react-h5-audio-player/lib/styles.css';
 import './App.css';
 
 interface Target {
@@ -39,11 +37,9 @@ const Game: React.FC = () => {
   const [targets, setTargets] = useState<Target[]>([]);
   const [powerUps, setPowerUps] = useState<PowerUp[]>([]);
   const [combo, setCombo] = useState<number>(0);
-  const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [difficulty, setDifficulty] = useState<'gabriel' | 'easy' | 'normal' | 'hard'>('normal');
   const [showInstructions, setShowInstructions] = useState<boolean>(false);
   const [bossSpawnRate, setBossSpawnRate] = useState<number>(0.03); // Initial 3% spawn rate
-  const audioPlayerRef = useRef<any>(null);
   const soundCloudRef = useRef<HTMLIFrameElement>(null);
   const gameAreaRef = useRef<HTMLDivElement>(null);
   const targetSize: number = 30;
@@ -53,7 +49,7 @@ const Game: React.FC = () => {
   const targetSpawnInterval: number = 1500 / 2;
   const powerUpSpawnInterval: number = 5000 / 2;
   const powerUpDuration: number = 3000; // Decreased to 3 seconds for lightning bolt
-  const [mousePosition, setMousePosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 }); // Fixed line
+  const [mousePosition, setMousePosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const targetRotationSpeed: number = 2;
 
   const [laser, setLaser] = useState<{
@@ -64,16 +60,25 @@ const Game: React.FC = () => {
     timestamp: number;
   } | null>(null);
 
+  // Updated songs array to only use SoundCloud sources
   const songs = [
     { id: 1, name: 'Lo-Fi Chill Beats', src: 'https://soundcloud.com/oxinym/sets/lofi-beats-royalty-free' },
-    { id: 2, name: 'Song 1', src: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3' },
-    { id: 3, name: 'Song 2', src: 'https://files.freemusicarchive.org/storage-freemusicarchive-org/music/ccCommunity/Chad_Crouch/Arps/Chad_Crouch_-_Algorithms.mp3' },
-    { id: 4, name: 'Song 3', src: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-9.mp3' },
-    { id: 5, name: 'Song 4', src: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3' },
-    { id: 6, name: 'Song 5', src: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-13.mp3' },
+    { id: 2, name: 'Relaxing Music', src: 'https://soundcloud.com/relaxingmusicok' },
+    { id: 3, name: 'Royalty Free Ambient Music', src: 'https://soundcloud.com/royalty-free-ambient' },
+    { id: 4, name: 'Soothing Relaxation', src: 'https://soundcloud.com/soothingrelaxation' },
+    { id: 5, name: 'Royalty Free Meditation Music', src: 'https://soundcloud.com/royaltyfreemeditation' },
   ];
 
   const [selectedSong, setSelectedSong] = useState(songs[0]);
+
+  // Fix game over crash by moving state updates into useEffect
+  useEffect(() => {
+    if (lives <= 0) {
+      setGameOver(true);
+      setGameStarted(false);
+      stopMusic();
+    }
+  }, [lives]);
 
   // Inline random color generator
   const getRandomColor = (): string => {
@@ -240,15 +245,7 @@ const Game: React.FC = () => {
     });
 
     if (!hitTarget && !hitPowerUp) {
-      setLives((prevLives) => {
-        const newLives = prevLives - 1;
-        if (newLives <= 0) {
-          setGameOver(true);
-          setGameStarted(false);
-          stopMusic();
-        }
-        return newLives;
-      });
+      setLives((prevLives) => prevLives - 1);
     }
 
     setLaser({
@@ -414,11 +411,6 @@ const Game: React.FC = () => {
         break;
       case 'skull':
         setLives((prevLives) => Math.max(prevLives - 1, 0));
-        if (lives <= 1) {
-          setGameOver(true);
-          setGameStarted(false);
-          stopMusic();
-        }
         break;
       case 'lightning':
         setTargets((currentTargets) =>
@@ -524,23 +516,18 @@ const Game: React.FC = () => {
     );
   };
 
-  // Start music
+  // Simplify music controls to only use SoundCloud
   const startMusic = () => {
-    if (selectedSong.id === 1 && soundCloudRef.current) {
+    if (soundCloudRef.current) {
       const widget = (window as any).SC.Widget(soundCloudRef.current);
       widget.play();
-    } else if (audioPlayerRef.current) {
-      audioPlayerRef.current.audio.current.play();
     }
   };
 
-  // Stop music
   const stopMusic = () => {
-    if (selectedSong.id === 1 && soundCloudRef.current) {
+    if (soundCloudRef.current) {
       const widget = (window as any).SC.Widget(soundCloudRef.current);
       widget.pause();
-    } else if (audioPlayerRef.current) {
-      audioPlayerRef.current.audio.current.pause();
     }
   };
 
@@ -609,7 +596,7 @@ const Game: React.FC = () => {
           });
 
           const expiredTargets = updatedTargets.filter(
-            (target) => Date.now() - target.spawnTime > 20000 // Decreased to 20 seconds
+            (target) => Date.now() - target.spawnTime > 30000 // Increased to 30 seconds
           );
 
           if (expiredTargets.length > 0) {
@@ -624,15 +611,7 @@ const Game: React.FC = () => {
                 current.filter((t) => !expiredTargets.find((et) => et.id === t.id))
               );
 
-              setLives((prevLives) => {
-                const newLives = prevLives - expiredTargets.length;
-                if (newLives <= 0) {
-                  setGameOver(true);
-                  setGameStarted(false);
-                  stopMusic();
-                }
-                return Math.max(newLives, 0);
-              });
+              setLives((prevLives) => Math.max(prevLives - expiredTargets.length, 0));
             }, 300);
           }
 
@@ -799,27 +778,15 @@ const Game: React.FC = () => {
       )}
 
       <div className="hidden">
-        {selectedSong.id === 1 ? (
-          <iframe
-            ref={soundCloudRef}
-            width="0"
-            height="0"
-            scrolling="no"
-            frameBorder="no"
-            allow="autoplay"
-            src={`https://w.soundcloud.com/player/?url=${encodeURIComponent(selectedSong.src)}&color=%23ff5500&auto_play=false&hide_related=false&show_comments=true&show_user=true&show_reposts=false&show_teaser=true`}
-          ></iframe>
-        ) : (
-          <AudioPlayer
-            ref={audioPlayerRef}
-            src={selectedSong.src}
-            autoPlay={false}
-            loop={true}
-            volume={0.5}
-            onPlay={() => setIsPlaying(true)}
-            onPause={() => setIsPlaying(false)}
-          />
-        )}
+        <iframe
+          ref={soundCloudRef}
+          width="0"
+          height="0"
+          scrolling="no"
+          frameBorder="no"
+          allow="autoplay"
+          src={`https://w.soundcloud.com/player/?url=${encodeURIComponent(selectedSong.src)}&color=%23ff5500&auto_play=false&hide_related=false&show_comments=true&show_user=true&show_reposts=false&show_teaser=true`}
+        ></iframe>
       </div>
 
       <div
