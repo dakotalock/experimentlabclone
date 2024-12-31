@@ -175,38 +175,88 @@ const Game: React.FC = () => {
     setTargets((prevTargets) => [...prevTargets, newTarget]);
   };
 
-  // Handle boss clicks
-  const handleBossClick = (id: number, e: MouseEvent<HTMLDivElement>) => {
-    setTargets((prevTargets) =>
-      prevTargets.map((target) =>
-        target.id === id && target.type === 'boss' && target.health
-          ? { ...target, health: target.health - 1 }
-          : target
-      )
-    );
+  // Spawn power-ups
+  const spawnPowerUp = () => {
+    const x = Math.random() * (gameWidth - targetSize);
+    const y = Math.random() * (gameHeight - targetSize);
+    const dx = (Math.random() - 0.5) * targetSpeed;
+    const dy = (Math.random() - 0.5) * targetSpeed;
+    const powerUpTypes: PowerUpType[] = ['extra-life', 'time-freeze', 'double-points', 'skull', 'lightning', 'lava-shield'];
+    const type: PowerUpType = powerUpTypes[Math.floor(Math.random() * powerUpTypes.length)];
+    const newPowerUp: PowerUp = {
+      x,
+      y,
+      dx,
+      dy,
+      id: Date.now() + Math.random(),
+      type,
+      spawnTime: Date.now(),
+    };
+    setPowerUps((prevPowerUps) => [...prevPowerUps, newPowerUp]);
 
     setTimeout(() => {
-      setTargets((prevTargets) => {
-        const updatedTargets = prevTargets.filter((target) => !(target.id === id && target.health === 0));
-        const clickedTarget = prevTargets.find((target) => target.id === id);
-        if (clickedTarget && clickedTarget.type === 'boss' && clickedTarget.health === 0) {
-          setScore((prevScore) => prevScore + 10); // Bonus points for killing boss
-        }
-        return updatedTargets;
-      });
-    }, 300);
+      setPowerUps((prevPowerUps) => prevPowerUps.filter((powerUp) => powerUp.id !== newPowerUp.id));
+    }, powerUpDuration);
   };
 
-  // Difficulty scaling: Increase boss spawn rate over time
-  useEffect(() => {
-    if (gameStarted && !gameOver) {
-      const difficultyInterval = setInterval(() => {
-        setBossSpawnRate((prev) => Math.min(prev + 0.015, 0.3)); // Increase by 1.5% every 2 minutes, cap at 30%
-      }, 120000); // 2 minutes
+  // Handle mouse movement
+  const handleMouseMove = (e: MouseEvent<HTMLDivElement>) => {
+    if (!gameAreaRef.current) return;
+    const rect = gameAreaRef.current.getBoundingClientRect();
+    setMousePosition({
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top,
+    });
+  };
 
-      return () => clearInterval(difficultyInterval);
+  // Handle mouse clicks
+  const handleMouseClick = (e: MouseEvent<HTMLDivElement>) => {
+    if (gameOver || !gameStarted) return;
+
+    if (!gameAreaRef.current) return;
+    const rect = gameAreaRef.current.getBoundingClientRect();
+
+    const clickX = e.clientX - rect.left;
+    const clickY = e.clientY - rect.top;
+
+    const hitTarget = targets.some((target) => {
+      const targetCenterX = target.x + target.size / 2;
+      const targetCenterY = target.y + target.size / 2;
+      const distance = Math.sqrt(
+        Math.pow(clickX - targetCenterX, 2) + Math.pow(clickY - targetCenterY, 2)
+      );
+      return distance <= target.size / 2;
+    });
+
+    const hitPowerUp = powerUps.some((powerUp) => {
+      const powerUpCenterX = powerUp.x + targetSize / 2;
+      const powerUpCenterY = powerUp.y + targetSize / 2;
+      const distance = Math.sqrt(
+        Math.pow(clickX - powerUpCenterX, 2) + Math.pow(clickY - powerUpCenterY, 2)
+      );
+      return distance <= targetSize / 2;
+    });
+
+    if (!hitTarget && !hitPowerUp) {
+      setLives((prevLives) => {
+        const newLives = prevLives - 1;
+        if (newLives <= 0) {
+          setGameOver(true);
+          setGameStarted(false);
+          stopMusic();
+        }
+        return newLives;
+      });
     }
-  }, [gameStarted, gameOver]);
+
+    setLaser({
+      startX: mousePosition.x,
+      startY: mousePosition.y,
+      endX: clickX,
+      endY: clickY,
+      timestamp: Date.now(),
+    });
+  };
 
   // Handle target clicks
   const handleTargetClick = (id: number, e: MouseEvent<HTMLDivElement>) => {
@@ -273,6 +323,28 @@ const Game: React.FC = () => {
       });
       setScore((prevScore) => prevScore + (combo > 5 ? 2 : 1));
       setCombo((prevCombo) => prevCombo + 1);
+    }, 300);
+  };
+
+  // Handle boss clicks
+  const handleBossClick = (id: number, e: MouseEvent<HTMLDivElement>) => {
+    setTargets((prevTargets) =>
+      prevTargets.map((target) =>
+        target.id === id && target.type === 'boss' && target.health
+          ? { ...target, health: target.health - 1 }
+          : target
+      )
+    );
+
+    setTimeout(() => {
+      setTargets((prevTargets) => {
+        const updatedTargets = prevTargets.filter((target) => !(target.id === id && target.health === 0));
+        const clickedTarget = prevTargets.find((target) => target.id === id);
+        if (clickedTarget && clickedTarget.type === 'boss' && clickedTarget.health === 0) {
+          setScore((prevScore) => prevScore + 10); // Bonus points for killing boss
+        }
+        return updatedTargets;
+      });
     }, 300);
   };
 
