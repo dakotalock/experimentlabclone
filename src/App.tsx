@@ -41,7 +41,7 @@ const Game: React.FC = () => {
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [difficulty, setDifficulty] = useState<'gabriel' | 'easy' | 'normal' | 'hard'>('normal');
   const [showInstructions, setShowInstructions] = useState<boolean>(false);
-  const [bossSpawnRate, setBossSpawnRate] = useState<number>(0.01); // Boss spawn rate starts at 1%
+  const [bossSpawnRate, setBossSpawnRate] = useState<number>(0.02); // Boss spawn rate starts at 2%
   const audioPlayerRef = useRef<any>(null);
   const soundCloudRef = useRef<HTMLIFrameElement>(null);
   const gameAreaRef = useRef<HTMLDivElement>(null);
