@@ -1,6 +1,4 @@
 import React, { useState, useEffect, useRef, MouseEvent } from 'react';
-import AudioPlayer from 'react-h5-audio-player';
-import 'react-h5-audio-player/lib/styles.css';
 import './App.css';
 
 interface Target {
@@ -42,8 +40,7 @@ const Game: React.FC = () => {
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [difficulty, setDifficulty] = useState<'gabriel' | 'easy' | 'normal' | 'hard'>('normal');
   const [showInstructions, setShowInstructions] = useState<boolean>(false);
-  const [bossSpawnRate, setBossSpawnRate] = useState<number>(0.03); // Initial 3% spawn rate
-  const audioPlayerRef = useRef<any>(null);
+  const [bossSpawnRate, setBossSpawnRate] = useState<number>(0.03);
   const soundCloudRef = useRef<HTMLIFrameElement>(null);
   const gameAreaRef = useRef<HTMLDivElement>(null);
   const targetSize: number = 30;
@@ -52,8 +49,8 @@ const Game: React.FC = () => {
   const targetSpeed: number = 2;
   const targetSpawnInterval: number = 1500 / 2;
   const powerUpSpawnInterval: number = 5000 / 2;
-  const powerUpDuration: number = 3000; // Decreased to 3 seconds for lightning bolt
-  const [mousePosition, setMousePosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 }); // Fixed line
+  const powerUpDuration: number = 3000;
+  const [mousePosition, setMousePosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const targetRotationSpeed: number = 2;
 
   const [laser, setLaser] = useState<{
@@ -66,16 +63,51 @@ const Game: React.FC = () => {
 
   const songs = [
     { id: 1, name: 'Lo-Fi Chill Beats', src: 'https://soundcloud.com/oxinym/sets/lofi-beats-royalty-free' },
-    { id: 2, name: 'Song 1', src: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3' },
-    { id: 3, name: 'Song 2', src: 'https://files.freemusicarchive.org/storage-freemusicarchive-org/music/ccCommunity/Chad_Crouch/Arps/Chad_Crouch_-_Algorithms.mp3' },
-    { id: 4, name: 'Song 3', src: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-9.mp3' },
-    { id: 5, name: 'Song 4', src: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3' },
-    { id: 6, name: 'Song 5', src: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-13.mp3' },
+    { id: 2, name: 'Chillhop Essentials', src: 'https://soundcloud.com/chillhopdotcom/sets/chillhop-essentials-spring-2023' },
+    { id: 3, name: 'Jazz Vibes', src: 'https://soundcloud.com/jazzvibes/sets/jazz-vibes-2023' }
   ];
 
   const [selectedSong, setSelectedSong] = useState(songs[0]);
 
-  // Inline random color generator
+  useEffect(() => {
+    const script = document.createElement('script');
+    script.src = 'https://w.soundcloud.com/player/api.js';
+    script.async = true;
+    document.body.appendChild(script);
+
+    return () => {
+      document.body.removeChild(script);
+    };
+  }, []);
+
+  const startMusic = () => {
+    if (soundCloudRef.current) {
+      try {
+        const widget = (window as any).SC.Widget(soundCloudRef.current);
+        widget.play();
+      } catch (error) {
+        console.warn('Failed to start music:', error);
+      }
+    }
+  };
+
+  const stopMusic = () => {
+    if (soundCloudRef.current) {
+      try {
+        const widget = (window as any).SC.Widget(soundCloudRef.current);
+        widget.pause();
+      } catch (error) {
+        console.warn('Failed to stop music:', error);
+      }
+    }
+  };
+
+  const handleGameOver = () => {
+    setGameOver(true);
+    setGameStarted(false);
+    stopMusic();
+  };
+
   const getRandomColor = (): string => {
     const letters = '0123456789ABCDEF';
     let color = '#';
@@ -85,7 +117,6 @@ const Game: React.FC = () => {
     return color;
   };
 
-  // Calculate responsive dimensions
   useEffect(() => {
     const updateDimensions = () => {
       const maxWidth = 600;
@@ -104,11 +135,10 @@ const Game: React.FC = () => {
     return () => window.removeEventListener('resize', updateDimensions);
   }, []);
 
-  // Boss spawn logic
   const spawnBoss = () => {
     const x = Math.random() * (gameWidth - targetSize * 2);
     const y = Math.random() * (gameHeight - targetSize * 2);
-    const dx = (Math.random() - 0.5) * (targetSpeed * 0.75); // Slower movement
+    const dx = (Math.random() - 0.5) * (targetSpeed * 0.75);
     const dy = (Math.random() - 0.5) * (targetSpeed * 0.75);
     const newBoss: Target = {
       x,
@@ -116,18 +146,17 @@ const Game: React.FC = () => {
       dx,
       dy,
       id: Date.now() + Math.random(),
-      color: '#FFD700', // Gold color
+      color: '#FFD700',
       rotation: 0,
       spawnTime: Date.now(),
       type: 'boss',
-      size: targetSize * 2, // Double size
+      size: targetSize * 2,
       health: 5,
-      isImmune: true, // Make boss immune to power-ups
+      isImmune: true,
     };
     setTargets((prevTargets) => [...prevTargets, newBoss]);
   };
 
-  // Spawn targets (including bosses)
   const spawnTarget = () => {
     const shouldSpawnBoss = Math.random() < bossSpawnRate;
     if (shouldSpawnBoss) {
@@ -155,9 +184,6 @@ const Game: React.FC = () => {
       case 'mini':
         size = targetSize / 2;
         break;
-      case 'normal':
-        size = targetSize;
-        break;
       default:
         size = targetSize;
         break;
@@ -177,7 +203,6 @@ const Game: React.FC = () => {
     setTargets((prevTargets) => [...prevTargets, newTarget]);
   };
 
-  // Spawn power-ups
   const spawnPowerUp = () => {
     const x = Math.random() * (gameWidth - targetSize);
     const y = Math.random() * (gameHeight - targetSize);
@@ -201,7 +226,6 @@ const Game: React.FC = () => {
     }, powerUpDuration);
   };
 
-  // Handle mouse movement
   const handleMouseMove = (e: MouseEvent<HTMLDivElement>) => {
     if (!gameAreaRef.current) return;
     const rect = gameAreaRef.current.getBoundingClientRect();
@@ -211,7 +235,6 @@ const Game: React.FC = () => {
     });
   };
 
-  // Handle mouse clicks
   const handleMouseClick = (e: MouseEvent<HTMLDivElement>) => {
     if (gameOver || !gameStarted) return;
 
@@ -243,9 +266,7 @@ const Game: React.FC = () => {
       setLives((prevLives) => {
         const newLives = prevLives - 1;
         if (newLives <= 0) {
-          setGameOver(true);
-          setGameStarted(false);
-          stopMusic();
+          handleGameOver();
         }
         return newLives;
       });
@@ -260,7 +281,6 @@ const Game: React.FC = () => {
     });
   };
 
-  // Handle target clicks
   const handleTargetClick = (id: number, e: MouseEvent<HTMLDivElement>) => {
     if (gameOver) return;
 
@@ -281,11 +301,9 @@ const Game: React.FC = () => {
 
       if (!clickedTarget) return prevTargets;
 
-      // Handle boss targets
       if (clickedTarget.type === 'boss' && clickedTarget.health) {
         const updatedHealth = clickedTarget.health - 1;
 
-        // If boss is defeated
         if (updatedHealth <= 0) {
           return prevTargets
             .map((target) =>
@@ -294,13 +312,11 @@ const Game: React.FC = () => {
             .filter((target) => !(target.id === id && target.isPopping));
         }
 
-        // If boss is hit but not defeated
         return prevTargets.map((target) =>
           target.id === id ? { ...target, health: updatedHealth } : target
         );
       }
 
-      // Handle slime targets
       if (clickedTarget.type === 'slime') {
         const miniTarget1: Target = {
           x: clickedTarget.x,
@@ -335,7 +351,6 @@ const Game: React.FC = () => {
         ];
       }
 
-      // Handle regular targets
       return prevTargets.map((target) =>
         target.id === id ? { ...target, isPopping: true } : target
       );
@@ -347,13 +362,11 @@ const Game: React.FC = () => {
 
         if (!clickedTarget) return prevTargets;
 
-        // Add score for boss defeat
         if (clickedTarget.type === 'boss' && clickedTarget.health === 0) {
           setScore((prevScore) => prevScore + 10);
           return prevTargets.filter((target) => target.id !== id);
         }
 
-        // Handle regular target defeat
         if (clickedTarget.isPopping) {
           const updatedTargets = prevTargets.filter((target) => target.id !== id);
           setScore((prevScore) => prevScore + (combo > 5 ? 2 : 1));
@@ -366,7 +379,6 @@ const Game: React.FC = () => {
     }, 300);
   };
 
-  // Handle power-up clicks
   const handlePowerUpClick = (id: number, e: MouseEvent<HTMLDivElement>) => {
     if (gameOver) return;
 
@@ -415,9 +427,7 @@ const Game: React.FC = () => {
       case 'skull':
         setLives((prevLives) => Math.max(prevLives - 1, 0));
         if (lives <= 1) {
-          setGameOver(true);
-          setGameStarted(false);
-          stopMusic();
+          handleGameOver();
         }
         break;
       case 'lightning':
@@ -459,7 +469,6 @@ const Game: React.FC = () => {
     }
   };
 
-  // Render laser effect
   const renderLaser = () => {
     if (!laser) return null;
 
@@ -524,27 +533,6 @@ const Game: React.FC = () => {
     );
   };
 
-  // Start music
-  const startMusic = () => {
-    if (selectedSong.id === 1 && soundCloudRef.current) {
-      const widget = (window as any).SC.Widget(soundCloudRef.current);
-      widget.play();
-    } else if (audioPlayerRef.current) {
-      audioPlayerRef.current.audio.current.play();
-    }
-  };
-
-  // Stop music
-  const stopMusic = () => {
-    if (selectedSong.id === 1 && soundCloudRef.current) {
-      const widget = (window as any).SC.Widget(soundCloudRef.current);
-      widget.pause();
-    } else if (audioPlayerRef.current) {
-      audioPlayerRef.current.audio.current.pause();
-    }
-  };
-
-  // Start game
   const startGame = () => {
     setScore(0);
     setLives(
@@ -561,7 +549,6 @@ const Game: React.FC = () => {
     startMusic();
   };
 
-  // Reset game
   const resetGame = () => {
     setGameStarted(false);
     setScore(0);
@@ -578,7 +565,6 @@ const Game: React.FC = () => {
     stopMusic();
   };
 
-  // Game loop for target and power-up movement
   useEffect(() => {
     if (gameStarted && !gameOver) {
       const movementInterval = setInterval(() => {
@@ -609,7 +595,7 @@ const Game: React.FC = () => {
           });
 
           const expiredTargets = updatedTargets.filter(
-            (target) => Date.now() - target.spawnTime > 20000 // Decreased to 20 seconds
+            (target) => Date.now() - target.spawnTime > 20000
           );
 
           if (expiredTargets.length > 0) {
@@ -627,9 +613,7 @@ const Game: React.FC = () => {
               setLives((prevLives) => {
                 const newLives = prevLives - expiredTargets.length;
                 if (newLives <= 0) {
-                  setGameOver(true);
-                  setGameStarted(false);
-                  stopMusic();
+                  handleGameOver();
                 }
                 return Math.max(newLives, 0);
               });
@@ -682,18 +666,16 @@ const Game: React.FC = () => {
     }
   }, [gameStarted, gameOver]);
 
-  // Progressive difficulty: Increase boss spawn rate over time
   useEffect(() => {
     if (gameStarted && !gameOver) {
       const bossRateInterval = setInterval(() => {
-        setBossSpawnRate((prev) => Math.min(prev + 0.01, 0.2)); // Increase by 1% up to max 20%
-      }, 30000); // Every 30 seconds
+        setBossSpawnRate((prev) => Math.min(prev + 0.01, 0.2));
+      }, 30000);
 
       return () => clearInterval(bossRateInterval);
     }
   }, [gameStarted, gameOver]);
 
-  // Render targets
   const renderTarget = (target: Target) => {
     if (target.type === 'boss') {
       return (
@@ -799,27 +781,15 @@ const Game: React.FC = () => {
       )}
 
       <div className="hidden">
-        {selectedSong.id === 1 ? (
-          <iframe
-            ref={soundCloudRef}
-            width="0"
-            height="0"
-            scrolling="no"
-            frameBorder="no"
-            allow="autoplay"
-            src={`https://w.soundcloud.com/player/?url=${encodeURIComponent(selectedSong.src)}&color=%23ff5500&auto_play=false&hide_related=false&show_comments=true&show_user=true&show_reposts=false&show_teaser=true`}
-          ></iframe>
-        ) : (
-          <AudioPlayer
-            ref={audioPlayerRef}
-            src={selectedSong.src}
-            autoPlay={false}
-            loop={true}
-            volume={0.5}
-            onPlay={() => setIsPlaying(true)}
-            onPause={() => setIsPlaying(false)}
-          />
-        )}
+        <iframe
+          ref={soundCloudRef}
+          width="0"
+          height="0"
+          scrolling="no"
+          frameBorder="no"
+          allow="autoplay"
+          src={`https://w.soundcloud.com/player/?url=${encodeURIComponent(selectedSong.src)}&color=%23ff5500&auto_play=false&hide_related=false&show_comments=true&show_user=true&show_reposts=false&show_teaser=true`}
+        ></iframe>
       </div>
 
       <div
@@ -830,7 +800,7 @@ const Game: React.FC = () => {
           height: gameHeight,
           position: 'relative',
           margin: '0 auto',
-          touchAction: 'none', // Prevent default touch behaviors
+          touchAction: 'none',
         }}
         onMouseMove={handleMouseMove}
         onClick={handleMouseClick}
