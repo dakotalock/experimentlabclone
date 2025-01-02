@@ -49,7 +49,8 @@ const Game: React.FC = () => {
   const targetSpeed: number = 2;
   const targetSpawnInterval: number = 1500 / 2;
   const powerUpSpawnInterval: number = 5000 / 2;
-  const powerUpDuration: number = 3000;
+  const powerUpDuration: number = 5000;
+  const targetLifespan: number = 45000;
   const [mousePosition, setMousePosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const targetRotationSpeed: number = 2;
 
@@ -63,8 +64,9 @@ const Game: React.FC = () => {
 
   const songs = [
     { id: 1, name: 'Lo-Fi Chill Beats', src: 'https://soundcloud.com/oxinym/sets/lofi-beats-royalty-free' },
-    { id: 2, name: 'Chillhop Essentials', src: 'https://soundcloud.com/chillhopdotcom/sets/chillhop-essentials-spring-2023' },
-    { id: 3, name: 'Jazz Vibes', src: 'https://soundcloud.com/jazzvibes/sets/jazz-vibes-2023' }
+    { id: 2, name: 'Relaxing Music', src: 'https://soundcloud.com/relaxingmusicok' },
+    { id: 3, name: 'Royalty Free Ambient Music', src: 'https://soundcloud.com/royalty-free-ambient' },
+    { id: 4, name: 'Soothing Relaxation', src: 'https://soundcloud.com/soothingrelaxation' }
   ];
 
   const [selectedSong, setSelectedSong] = useState(songs[0]);
@@ -595,27 +597,29 @@ const Game: React.FC = () => {
           });
 
           const expiredTargets = updatedTargets.filter(
-            (target) => Date.now() - target.spawnTime > 20000
+            (target) => Date.now() - target.spawnTime > targetLifespan
           );
 
           if (expiredTargets.length > 0) {
-            updatedTargets.forEach((target) => {
-              if (expiredTargets.find((et) => et.id === target.id)) {
-                target.isPopping = true;
-              }
-            });
+            // First set popping animation
+            setTargets(current => 
+              current.map(target => ({
+                ...target,
+                isPopping: expiredTargets.find(et => et.id === target.id) ? true : target.isPopping
+              }))
+            );
 
+            // After animation, remove targets and subtract one life per target
             setTimeout(() => {
-              setTargets((current) =>
-                current.filter((t) => !expiredTargets.find((et) => et.id === t.id))
-              );
-
-              setLives((prevLives) => {
-                const newLives = prevLives - expiredTargets.length;
+              setTargets(current => current.filter(t => !expiredTargets.find(et => et.id === t.id)));
+              
+              // Subtract one life per expired target
+              setLives(prevLives => {
+                const newLives = Math.max(prevLives - expiredTargets.length, 0);
                 if (newLives <= 0) {
                   handleGameOver();
                 }
-                return Math.max(newLives, 0);
+                return newLives;
               });
             }, 300);
           }
@@ -669,12 +673,34 @@ const Game: React.FC = () => {
   useEffect(() => {
     if (gameStarted && !gameOver) {
       const bossRateInterval = setInterval(() => {
-        setBossSpawnRate((prev) => Math.min(prev + 0.01, 0.2));
-      }, 30000);
+        setBossSpawnRate((prev) => {
+          // Gradually increase based on score
+          const baseRate = 0.03;
+          const scoreMultiplier = Math.floor(score / 100);
+          return Math.min(baseRate + (scoreMultiplier * 0.02), 0.2);
+        });
+      }, 30000); // Check every 30 seconds
 
       return () => clearInterval(bossRateInterval);
     }
-  }, [gameStarted, gameOver]);
+  }, [gameStarted, gameOver, score]);
+
+  useEffect(() => {
+    if (soundCloudRef.current) {
+      try {
+        const widget = (window as any).SC.Widget(soundCloudRef.current);
+        widget.pause();
+        soundCloudRef.current.src = `https://w.soundcloud.com/player/?url=${encodeURIComponent(selectedSong.src)}&color=%23ff5500&auto_play=${gameStarted}&hide_related=false&show_comments=true&show_user=true&show_reposts=false&show_teaser=true`;
+        if (gameStarted) {
+          setTimeout(() => {
+            widget.play();
+          }, 100); // Small delay to ensure widget is ready
+        }
+      } catch (error) {
+        console.warn('Failed to switch playlist:', error);
+      }
+    }
+  }, [selectedSong]);
 
   const renderTarget = (target: Target) => {
     if (target.type === 'boss') {
